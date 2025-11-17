@@ -61,19 +61,49 @@
             </div>
         </div>
 
-        <!-- GOOGLE MAPS EMBED (API'siz) -->
-        <div class="mb-8">
-            <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d48125.96347039236!2d28.982757437621185!3d41.071774821097655!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14cab63f6f8193f1%3A0x36c864a929a1018c!2zQmXFn2lrdGHFny_EsHN0YW5idWw!5e0!3m2!1str!2str!4v1763383720959!5m2!1str!2str"
-                width="100%"
-                height="200"
-                style="border:0; border-radius: 12px;"
-                allowfullscreen=""
-                loading="lazy"
-                referrerpolicy="no-referrer-when-downgrade">
-            </iframe>
-            <p class="text-xs text-gray-500 mt-2">Beylikdüzü – İstanbul</p>
+      <!-- GOOGLE MAPS + TURKNET BİLGİ KARTI -->
+<div style="position: relative; width: 100%; max-width: 600px; margin: 0 auto;">
+
+    <!-- ÜSTTEKİ BİLGİ KARTI -->
+    <div style="
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 10px 14px;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        z-index: 10;
+    ">
+        <!-- TURKNET LOGO -->
+        <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhsrlcPaKk5Q-6gmL7wCD-qdD6hHaG6AY4F0zz5hSgNaAZwUnxPThZp-KQvPlcAymfB7CL-wmox8wHr1Tg5QPq4QbfwudeNRjhldvnYJi_iSrsfr1-WUCeV2BYym5iIoAB3Yw0HAnJ_4wcmg3O-J7NVvK854PyuKx4jwr-Bg-h9XxjT65Pj5gFuOCGjn5Ko/s97/turknet-logo1.png"
+             alt="TurkNet"
+             style="width: 55px; height: auto;">
+
+        <!-- BİLGİ METNİ -->
+        <div>
+            <strong>TurkNet Kesintisi</strong><br>
+            Kesinti Zamanı: <span style="font-weight:600;">17.11.2025 / 11:45
+            +5 Saat</span>
         </div>
+    </div>
+
+    <!-- HARİTA -->
+    <iframe
+        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d48125.96347039236!2d28.982757437621185!3d41.071774821097655!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14cab63f6f8193f1%3A0x36c864a929a1018c!2zQmXFn2lrdGHFny_EsHN0YW5idWw!5e0!3m2!1str!2str!4v1763383720959!5m2!1str!2str"
+        width="100%"
+        height="300"
+        style="border:0; border-radius: 12px;"
+        allowfullscreen=""
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade">
+    </iframe>
+</div>
+
 
         <!-- İletişim Formu -->
         <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-200">
@@ -119,3 +149,4 @@
 
 </body>
 </html>
+
