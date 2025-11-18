@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ISP Kesinti Bildirim Haritası </title>
+  <title>ISP Kesinti Bildirim Haritası</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
@@ -31,7 +31,7 @@
 
 <body>
   <div class="header">
-    <h1>ISP Kesinti Bildirim Haritası -Türkiye</h1>
+    <h1>ISP Kesinti Bildirim Haritası</h1>
   </div>
 
   <div class="container">
@@ -50,12 +50,12 @@
             <select id="isp" required>
               <option value="">Seçiniz</option>
               <option>D-Smart Net</option>
-             <option>DigiTurk Net</option> 
-             <option>Millenicom</option>
-             <option>Netspeed</option> 
-             <option>Turkcell Superonline</option>
-             <option>Türk Telekom-TTNET</option> 
-             <option>TURKNET</option> 
+              <option>DigiTurk Net</option> 
+              <option>Millenicom</option>
+              <option>Netspeed</option> 
+              <option>Turkcell Superonline</option>
+              <option>Türk Telekom-TTNET</option> 
+              <option>TURKNET</option> 
               <option>Türksat Kablonet</option> 
               <option>Vodafone Net</option>
               <option>Diğer</option>
@@ -92,16 +92,12 @@
       <!-- LİDERLİK TABLOSU -->
       <div class="flex-item content-section">
         <h2>ISS Kesinti Liderlik Tablosu</h2>
-        <div class="leaderboard-item"><b>Türk Telekom</b><span class="count">45 Bildirim</span></div>
-        <div class="leaderboard-item"><b>Turkcell Superonline</b><span class="count">28 Bildirim</span></div>
-        <div class="leaderboard-item"><b>Türknet</b><span class="count">15 Bildirim</span></div>
-        <div class="leaderboard-item"><b>Vodafone Net</b><span class="count">12 Bildirim</span></div>
-        <div class="leaderboard-item"><b>Millenicom</b><span class="count">5 Bildirim</span></div>
+        <div id="leaderboard"></div>
         <hr>
         <h2>Genel İstatistikler</h2>
-        <div style="font-size:2em;color:#0d6efd;">12.540</div>
+        <div id="totalReports" style="font-size:2em;color:#0d6efd;">0</div>
         <p>Aktif kesinti:</p>
-        <div style="font-size:2em;color:#dc3545;">98</div>
+        <div id="activeOutages" style="font-size:2em;color:#dc3545;">0</div>
       </div>
     </div>
   </div>
@@ -119,11 +115,15 @@
       kesintiTarihi_year:"entry.888686904_year", kesintiTarihi_month:"entry.888686904_month",
       kesintiTarihi_day:"entry.888686904_day",
       baslangicSaati_hour:"entry.1555945811_hour", baslangicSaati_minute:"entry.1555945811_minute",
-      tahminiBitisSaati_hour:"entry.126525220_hour", tahminiBitisSaati_minute:"entry.126525220_minute"
+      tahminiBitisSaati_hour:"entry.126525220_hour", baslangicSaati_minute:"entry.126525220_minute"
     };
 
     let map, marker=null, selectedCoords=null;
-    document.addEventListener('DOMContentLoaded', ()=>setTimeout(initMap,200));
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      setTimeout(initMap,200);
+      loadLeaderboard(); // JSON'dan tablo ve istatistik yükle
+    });
 
     function initMap(){
       const TURKEY_BOUNDS=[[35.8154,25.5670],[42.1000,44.8110]];
@@ -246,7 +246,26 @@
           document.getElementById("selected-location").textContent="Seçilen Konum: Belirtilmedi";
         }).catch(()=>showAlert("Gönderimde hata oluştu."));
     });
+
+    // JSON'dan liderlik ve istatistikleri yükleme
+    function loadLeaderboard(){
+      fetch('data.json')
+        .then(res=>res.json())
+        .then(data=>{
+          const lb=document.getElementById('leaderboard');
+          lb.innerHTML='';
+          data.leaderboard.forEach(item=>{
+            const div=document.createElement('div');
+            div.className='leaderboard-item';
+            div.innerHTML=`<b>${item.isp}</b><span class="count">${item.count} Bildirim</span>`;
+            lb.appendChild(div);
+          });
+          document.getElementById('totalReports').textContent=data.stats.totalReports;
+          document.getElementById('activeOutages').textContent=data.stats.activeOutages;
+        })
+        .catch(err=>console.error('JSON yüklenemedi:',err));
+    }
+
   </script>
 </body>
 </html>
-
