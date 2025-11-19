@@ -15,7 +15,7 @@ const FORM_ENTRY_IDS = {
   tahminiBitisSaati_minute: "entry.126525220_minute"
 };
 
-// YENİ: Google Sheets CSV URL'niz - Web'de Yayınla'dan aldığınız URL budur
+// Google Sheets CSV URL'niz - LÜTFEN KENDİ URL'NİZ İLE DEĞİŞTİRİN
 const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS0JVaf_CyFyWoYXeG49QZCM-jaSk4SM_FZlf3XA2bR1DO-mT6XDYz-D2vEN4Lqm1MFZ1UtCcULauYX/pub?gid=800815817&single=true&output=csv";
 
 let map, marker = null, selectedCoords = null;
@@ -197,20 +197,41 @@ document.getElementById("kesinti-form").addEventListener("submit", e => {
 
 /**
  * Google Sheets'ten gelen CSV verisini ayrıştırır ve rapor dizisine dönüştürür.
- * CSV'nin ilk satırı başlık (header) kabul edilir.
  */
 function csvToReports(csv) {
   // CSV satırlarını ayır ve boş olanları filtrele
   const lines = csv.split('\n').filter(line => line.trim() !== '');
-  if (lines.length < 2) return [];
+  if (lines.length < 2) {
+      console.error("CSV okunamadı veya başlık satırı dışında veri yok.");
+      return [];
+  }
 
   // Başlık satırı (Header)
-  // CSV'deki Türkçe başlıklar buraya aynen yazılmalıdır.
   const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  console.log("Bulunan Başlıklar (Sheets'ten):", headers); // HATA AYIKLAMA İÇİN EKLENDİ
 
   // Veri satırları
   const reports = [];
   
+  // ÖNEMLİ: Sheets'inizdeki Sütun Başlıkları
+  // LÜTFEN AŞAĞIDAKİ TEPİTLERİ KENDİ GOOGLE SHEETS SÜTUN BAŞLIKLARINIZLA EŞLEŞTİRİN!
+  // Başlıklar BÜYÜK/KÜÇÜK harf, Türkçe karakter ve boşluk açısından BİREBİR aynı olmalıdır.
+  // Sizin listeniz: Zaman damgası, ISP , İl , İlçe ,Enlem(Lat),Boylam (Lng),Kesinti Tarihi,Başlangıç Saati,Bitiş Saati ,Puan
+  const timestampCol = 'Zaman damgası'; // Başlangıç zamanı için kullanılacak
+  const ispCol = 'ISP'; 
+  const ilCol = 'İl';
+  const ilceCol = 'İlçe';
+  const tahminiBitisCol = 'Bitiş Saati'; // Tahmini bitiş saati için kullanılacak
+  const kesintiTarihiCol = 'Kesinti Tarihi'; // Tarih bilgisi için
+
+  // Kontrol: Gerekli başlıklar Sheets'ten gelen listede var mı?
+  if (!headers.includes(timestampCol) || !headers.includes(ispCol) || !headers.includes(ilCol) || !headers.includes(kesintiTarihiCol)) {
+      console.error(`Gerekli sütun başlıkları bulunamadı. Lütfen kontrol edin.`);
+      showAlert("Sheets başlıkları ile kodun beklediği başlıklar eşleşmiyor. Konsolu kontrol edin.", false);
+      return [];
+  }
+
+
   for (let i = 1; i < lines.length; i++) {
     // Tırnak içindeki virgülleri göz ardı ederek ayırma işlemi
     const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/"/g, ''));
@@ -221,25 +242,20 @@ function csvToReports(csv) {
       entry[header] = values[index];
     });
 
-    // Anahtar sütun adları (Sheets'teki tam karşılıkları)
-    const timestampCol = 'Zaman Damgası'; 
-    const ispCol = 'İnternet Servis Sağlayıcı'; 
-    const ilCol = 'İl';
-    const ilceCol = 'İlçe';
-    const tahminiBitisCol = 'Tahmini Bitiş Saati'; 
-
     const isp = entry[ispCol];
-    const timestamp = entry[timestampCol];
+    const timestamp = entry[timestampCol]; // GG.AA.YYYY S:D:S formatında beklenir
     const il = entry[ilCol];
     const ilce = entry[ilceCol];
-    const tahminiBitisSaati = entry[tahminiBitisCol]; 
+    const tahminiBitisSaati = entry[tahminiBitisCol]; // S:D veya S:D:S formatında beklenir
+    const kesintiTarihi = entry[kesintiTarihiCol]; // YYYY-MM-DD veya GG.AA.YYYY formatında beklenir
 
-    if (isp && timestamp) {
+    if (isp && timestamp && kesintiTarihi) {
         let start = null;
         let end = null;
         
         try {
-            // Sheets'teki Türkçe Zaman Damgası: DD.MM.YYYY HH:mm:ss
+            // Başlangıç Tarihini ve Saatini Zaman Damgası Sütunundan Alıyoruz
+            // Zaman damgası: 19.02.2025 10:30:00 (Varsayılan Sheets formatı)
             const [datePart, timePart] = timestamp.split(' ');
             const [day, month, year] = datePart.split('.');
             
@@ -248,18 +264,27 @@ function csvToReports(csv) {
             start = new Date(isoDate).toISOString();
             
             if (tahminiBitisSaati) {
-                // Tahmini bitiş saati (örn: "17:00") başlangıç tarihi ile birleştirilir.
-                let endDt = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${tahminiBitisSaati}:00`);
+                // Bitiş tarihi için Kesinti Tarihi sütununu kullan
+                let [kesintiYil, kesintiAy, kesintiGun] = [year, month, day];
                 
-                // Eğer tahmini bitiş saati, başlangıç saatiyle aynı günde daha küçükse (örneğin gece 02:00)
-                // bir sonraki güne atarız.
+                // Kesinti Tarihi'nin formatını kontrol edip ayrıştır
+                if (kesintiTarihi.includes('.')) { // GG.AA.YYYY formatı
+                    [kesintiGun, kesintiAy, kesintiYil] = kesintiTarihi.split('.');
+                } else if (kesintiTarihi.includes('-')) { // YYYY-MM-DD formatı
+                    [kesintiYil, kesintiAy, kesintiGun] = kesintiTarihi.split('-');
+                }
+
+                // Tahmini bitiş saati (örn: "17:00") kesinti tarihi ile birleştirilir.
+                let endDt = new Date(`${kesintiYil}-${kesintiAy.padStart(2, '0')}-${kesintiGun.padStart(2, '0')}T${tahminiBitisSaati}:00`);
+                
+                // Eğer tahmini bitiş saati, başlangıç saatiyle aynı günde daha küçükse, bir sonraki güne atarız.
                 if (endDt.getTime() < new Date(start).getTime()) {
                     endDt.setDate(endDt.getDate() + 1);
                 }
                 end = endDt.toISOString();
             }
         } catch (e) {
-            console.warn("Tarih/Saat ayrıştırma hatası:", e, "Orijinal Değer:", timestamp);
+            console.warn("Tarih/Saat ayrıştırma hatası:", e, "Orijinal Değerler:", timestamp, tahminiBitisSaati, kesintiTarihi);
             continue; 
         }
 
@@ -281,14 +306,20 @@ function csvToReports(csv) {
 function loadAndProcessSheetData() {
     fetch(GOOGLE_SHEETS_CSV_URL)
         .then(res => {
-            if (!res.ok) throw new Error("Ağ hatası: Sheets API'sine ulaşılamadı.");
+            if (!res.ok) {
+                console.error("HTTP Hatası:", res.status, res.statusText);
+                throw new Error("Ağ hatası: Sheets API'sine ulaşılamadı (Durum: " + res.status + "). Web'de Yayınla ayarınızı kontrol edin.");
+            }
             return res.text(); // CSV formatı olduğu için text olarak çekiyoruz
         })
         .then(csvText => {
+            if (!csvText || csvText.length < 50) { 
+                 throw new Error("CSV içeriği boş veya beklenenden kısa. Erişimde sorun olabilir.");
+            }
+            
             const reports = csvToReports(csvText);
             
             // Raporları işleyerek istatistikleri ve tabloları oluştur
-            // Bitiş tarihi olmayan veya gelecekteki bitiş tarihi olanları aktif kesinti say
             const activeOutages = reports.filter(r => r.end === null || (r.end && new Date(r.end) > new Date())).length;
             
             const processedData = {
@@ -301,11 +332,13 @@ function loadAndProcessSheetData() {
 
             // Tabloları güncelleyen ana fonksiyonu çağır
             updateLeaderboards(processedData);
+            console.log("Veri başarıyla yüklendi ve işlendi. Toplam rapor:", reports.length);
 
         })
         .catch(err => {
-            console.error("Sheets verisi yüklenemedi/işlenemedi:", err);
-            showAlert("Veri yüklenemedi: Google Sheets CSV'ye erişim hatası veya format bozuk.", false);
+            console.error("Sheets verisi yüklenemedi/işlenemedi:", err.message);
+            // Hata mesajını daha detaylı göster
+            showAlert("Veri yüklenemedi: Google Sheets CSV'ye erişim hatası veya format bozuk. Lütfen Konsol'daki detayları ve Sheets başlıklarını kontrol edin. Hata: " + err.message, false);
         });
 }
 
