@@ -2,8 +2,8 @@
 // GOOGLE FORM VE TABLO ID'LERİ
 // ===================================================================
 const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquQ/formResponse';
-const SPREADSHEET_ID = '2PACX-1vS0Jvaf_CyFyWoYxeG49QZCM-jaSk4SM_FzIf3XA2bR1D0-mT6XDyz-D2vEn4Lqm1MFZ1UtCcULauYX'; 
-const SHEET_GID = '800815817'; 
+const SPREADSHEET_ID = '1gMbbI0dUtwry8lEv-u2HpHf5hE9X74tTwiil886NQzK'; 
+const SHEET_GID = '800815817';
 
 // Google Query API URL'si
 const DATA_SOURCE_URL = `https://docs.google.com/spreadsheets/d/e/${SPREADSHEET_ID}/pubg?output=json&gid=${SHEET_GID}`;
