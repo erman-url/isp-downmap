@@ -1,3 +1,4 @@
+// Google Form gönderim URL'si (Değişmedi)
 const GOOGLE_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquQ/formResponse";
 
@@ -14,11 +15,15 @@ const FORM_ENTRY_IDS = {
   tahminiBitisSaati_minute: "entry.126525220_minute"
 };
 
+// YENİ: Google Sheets CSV URL'niz - Web'de Yayınla'dan aldığınız URL budur
+const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS0JVaf_CyFyWoYXeG49QZCM-jaSk4SM_FZlf3XA2bR1DO-mT6XDYz-D2vEN4Lqm1MFZ1UtCcULauYX/pub?gid=800815817&single=true&output=csv";
+
 let map, marker = null, selectedCoords = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   setTimeout(initMap, 200);
-  loadLeaderboard();
+  // Veriyi yükle ve tabloları güncelle
+  loadAndProcessSheetData(); 
 });
 
 function initMap() {
@@ -151,11 +156,18 @@ document.getElementById("kesinti-form").addEventListener("submit", e => {
   formData.append(FORM_ENTRY_IDS.enlem, selectedCoords.lat);
   formData.append(FORM_ENTRY_IDS.boylam, selectedCoords.lng);
   formData.append(FORM_ENTRY_IDS.aciklama, aciklama);
-  formData.append(FORM_ENTRY_IDS.kesintiTarihi_year, dt.getFullYear());
-  formData.append(FORM_ENTRY_IDS.kesintiTarihi_month, dt.getMonth() + 1);
-  formData.append(FORM_ENTRY_IDS.kesintiTarihi_day, dt.getDate());
-  formData.append(FORM_ENTRY_IDS.baslangicSaati_hour, dt.getHours());
-  formData.append(FORM_ENTRY_IDS.baslangicSaati_minute, dt.getMinutes());
+  
+  // Date input'tan (YYYY-MM-DD) gelen değeri yıl, ay, gün olarak parçala
+  const [year, month, day] = kesintiTarihi.split('-');
+  formData.append(FORM_ENTRY_IDS.kesintiTarihi_year, year);
+  formData.append(FORM_ENTRY_IDS.kesintiTarihi_month, month);
+  formData.append(FORM_ENTRY_IDS.kesintiTarihi_day, day);
+
+  // Time input'tan (HH:MM) gelen değeri saat ve dakika olarak parçala
+  // Formda başlangıç saati olmadığı için bu kısmı şimdiki zamandan alıyoruz
+  const now = new Date();
+  formData.append(FORM_ENTRY_IDS.baslangicSaati_hour, now.getHours());
+  formData.append(FORM_ENTRY_IDS.baslangicSaati_minute, now.getMinutes());
 
   if (tahminiBitisSaati) {
     const [h, m] = tahminiBitisSaati.split(":");
@@ -165,7 +177,7 @@ document.getElementById("kesinti-form").addEventListener("submit", e => {
 
   fetch(GOOGLE_FORM_URL, { method: "POST", mode: "no-cors", body: formData })
     .then(() => {
-      showAlert("Bildirim başarıyla gönderildi!", true);
+      showAlert("Bildirim başarıyla gönderildi! Verilerin tabloda görünmesi birkaç saniye sürebilir.", true);
       document.getElementById("kesinti-form").reset();
       document.getElementById("il").value = "";
       document.getElementById("ilce").value = "";
@@ -176,15 +188,192 @@ document.getElementById("kesinti-form").addEventListener("submit", e => {
       }
       document.getElementById("selected-location").textContent =
         "Seçilen Konum: Belirtilmedi";
+      
+      // Form gönderildikten sonra verileri yeniden yükle
+      loadAndProcessSheetData(); 
     })
     .catch(() => showAlert("Gönderimde hata oluştu."));
 });
 
-// ---- yeni hesaplama fonksiyonları ----
+/**
+ * Google Sheets'ten gelen CSV verisini ayrıştırır ve rapor dizisine dönüştürür.
+ * CSV'nin ilk satırı başlık (header) kabul edilir.
+ */
+function csvToReports(csv) {
+  // CSV satırlarını ayır ve boş olanları filtrele
+  const lines = csv.split('\n').filter(line => line.trim() !== '');
+  if (lines.length < 2) return [];
+
+  // Başlık satırı (Header)
+  // CSV'deki Türkçe başlıklar buraya aynen yazılmalıdır.
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+
+  // Veri satırları
+  const reports = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    // Tırnak içindeki virgülleri göz ardı ederek ayırma işlemi
+    const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/"/g, ''));
+    if (values.length !== headers.length) continue; // Hatalı satırları atla
+
+    const entry = {};
+    headers.forEach((header, index) => {
+      entry[header] = values[index];
+    });
+
+    // Anahtar sütun adları (Sheets'teki tam karşılıkları)
+    const timestampCol = 'Zaman Damgası'; 
+    const ispCol = 'İnternet Servis Sağlayıcı'; 
+    const ilCol = 'İl';
+    const ilceCol = 'İlçe';
+    const tahminiBitisCol = 'Tahmini Bitiş Saati'; 
+
+    const isp = entry[ispCol];
+    const timestamp = entry[timestampCol];
+    const il = entry[ilCol];
+    const ilce = entry[ilceCol];
+    const tahminiBitisSaati = entry[tahminiBitisCol]; 
+
+    if (isp && timestamp) {
+        let start = null;
+        let end = null;
+        
+        try {
+            // Sheets'teki Türkçe Zaman Damgası: DD.MM.YYYY HH:mm:ss
+            const [datePart, timePart] = timestamp.split(' ');
+            const [day, month, year] = datePart.split('.');
+            
+            // Başlangıç tarihi için ISO formatı oluştur (YYYY-MM-DDTHH:mm:ss)
+            const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${timePart.split(':').slice(0, 2).join(':')}:00`;
+            start = new Date(isoDate).toISOString();
+            
+            if (tahminiBitisSaati) {
+                // Tahmini bitiş saati (örn: "17:00") başlangıç tarihi ile birleştirilir.
+                let endDt = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${tahminiBitisSaati}:00`);
+                
+                // Eğer tahmini bitiş saati, başlangıç saatiyle aynı günde daha küçükse (örneğin gece 02:00)
+                // bir sonraki güne atarız.
+                if (endDt.getTime() < new Date(start).getTime()) {
+                    endDt.setDate(endDt.getDate() + 1);
+                }
+                end = endDt.toISOString();
+            }
+        } catch (e) {
+            console.warn("Tarih/Saat ayrıştırma hatası:", e, "Orijinal Değer:", timestamp);
+            continue; 
+        }
+
+      reports.push({
+        isp: isp,
+        il: il,
+        ilce: ilce,
+        start: start,
+        end: end // null veya bitiş saati
+      });
+    }
+  }
+
+  return reports;
+}
+
+
+// Google Sheets'ten veriyi çeken, işleyen ve tabloları güncelleyen ana fonksiyon
+function loadAndProcessSheetData() {
+    fetch(GOOGLE_SHEETS_CSV_URL)
+        .then(res => {
+            if (!res.ok) throw new Error("Ağ hatası: Sheets API'sine ulaşılamadı.");
+            return res.text(); // CSV formatı olduğu için text olarak çekiyoruz
+        })
+        .then(csvText => {
+            const reports = csvToReports(csvText);
+            
+            // Raporları işleyerek istatistikleri ve tabloları oluştur
+            // Bitiş tarihi olmayan veya gelecekteki bitiş tarihi olanları aktif kesinti say
+            const activeOutages = reports.filter(r => r.end === null || (r.end && new Date(r.end) > new Date())).length;
+            
+            const processedData = {
+                reports: reports,
+                stats: {
+                    totalReports: reports.length,
+                    activeOutages: activeOutages
+                }
+            };
+
+            // Tabloları güncelleyen ana fonksiyonu çağır
+            updateLeaderboards(processedData);
+
+        })
+        .catch(err => {
+            console.error("Sheets verisi yüklenemedi/işlenemedi:", err);
+            showAlert("Veri yüklenemedi: Google Sheets CSV'ye erişim hatası veya format bozuk.", false);
+        });
+}
+
+
+function updateLeaderboards(data) {
+  const lb = document.getElementById("leaderboard");
+  lb.innerHTML = "";
+  
+  // Rapor sayısına göre ISP'leri sayan leaderboard
+  const ispCounts = {};
+  (data.reports || []).forEach(r => {
+      ispCounts[r.isp] = (ispCounts[r.isp] || 0) + 1;
+  });
+
+  const sortedIspCounts = Object.entries(ispCounts)
+    .map(([isp, count]) => ({ isp, count }))
+    .sort((a, b) => b.count - a.count);
+
+  (sortedIspCounts || []).forEach(item => {
+    const div = document.createElement("div");
+    div.className = "leaderboard-item";
+    div.innerHTML = `<b>${item.isp}</b><span>${item.count} Bildirim</span>`;
+    lb.appendChild(div);
+  });
+
+  // İstatistikleri güncelleme
+  document.getElementById("totalReports").textContent =
+    data.stats?.totalReports ?? 0;
+
+  document.getElementById("activeOutages").textContent =
+    data.stats?.activeOutages ?? 0;
+
+  // En uzun kesinti süresine göre TOP 3
+  const topISP = getTopIspByOutage(data);
+  const topLOC = getTopLocationByOutage(data);
+
+  const ispDiv = document.getElementById("topISP");
+  ispDiv.innerHTML = topISP.length
+    ? topISP
+        .map(
+          i =>
+            `<div class="leaderboard-item"><b>${i.isp}</b> <span>${(
+              i.totalMinutes / 60
+            ).toFixed(1)} Saat</span></div>`
+        )
+        .join("")
+    : "<div>Veri yok</div>";
+
+  const locDiv = document.getElementById("topLOC");
+  locDiv.innerHTML = topLOC.length
+    ? topLOC
+        .map(
+          i =>
+            `<div class="leaderboard-item"><b>${i.location}</b> <span>${(
+              i.totalMinutes / 60
+            ).toFixed(1)} Saat</span></div>`
+        )
+        .join("")
+    : "<div>Veri yok</div>";
+}
+
+
+// ---- hesaplama fonksiyonları (değişmedi) ----
 function calcMinutes(start, end) {
   const s = new Date(start);
-  const e = end ? new Date(end) : new Date();
-  const diff = Math.round((e - s) / 60000);
+  // Eğer 'end' (bitiş) tarihi boşsa (null), kesinti devam ediyor demektir, bu yüzden anlık zamanı (new Date()) kullanırız.
+  const e = end ? new Date(end) : new Date(); 
+  const diff = Math.round((e - s) / 60000); // Milisaniyeyi dakikaya çevir
   return Math.max(0, isFinite(diff) ? diff : 0);
 }
 
@@ -213,57 +402,4 @@ function getTopLocationByOutage(data, topN = 3) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, topN)
     .map(([location, total]) => ({ location, totalMinutes: total }));
-}
-
-function loadLeaderboard() {
-  fetch("data.json")
-    .then(res => res.json())
-    .then(data => {
-      const lb = document.getElementById("leaderboard");
-      lb.innerHTML = "";
-
-      (data.leaderboard || []).forEach(item => {
-        const div = document.createElement("div");
-        div.className = "leaderboard-item";
-        div.innerHTML = `<b>${item.isp}</b><span>${item.count} Bildirim</span>`;
-        lb.appendChild(div);
-      });
-
-      document.getElementById("totalReports").textContent =
-        data.stats?.totalReports ?? 0;
-
-      document.getElementById("activeOutages").textContent =
-        data.stats?.activeOutages ?? 0;
-
-      const topISP = getTopIspByOutage(data);
-      const topLOC = getTopLocationByOutage(data);
-
-      const ispDiv = document.getElementById("topISP");
-      ispDiv.innerHTML = topISP.length
-        ? topISP
-            .map(
-              i =>
-                `<div class="leaderboard-item"><b>${i.isp}</b> <span>${(
-                  i.totalMinutes / 60
-                ).toFixed(1)} Saat</span></div>`
-            )
-            .join("")
-        : "<div>Veri yok</div>";
-
-      const locDiv = document.getElementById("topLOC");
-      locDiv.innerHTML = topLOC.length
-        ? topLOC
-            .map(
-              i =>
-                `<div class="leaderboard-item"><b>${i.location}</b> <span>${(
-                  i.totalMinutes / 60
-                ).toFixed(1)} Saat</span></div>`
-            )
-            .join("")
-        : "<div>Veri yok</div>";
-    })
-    .catch(err => {
-      console.error("JSON yüklenemedi:", err);
-      showAlert("Veri yüklenemedi: data.json bulunamadı veya bozuk.");
-    });
 }
