@@ -2,7 +2,7 @@
 // GOOGLE FORM VE TABLO ID'LERİ
 // ===================================================================
 const DATA_SOURCE_URL = 'https://script.google.com/macros/s/AKfycbyBXAmcSHJ8e5jg8XgPmilhNmsfzfutNtv_K-yiErkeOZCWCWoh2lbyLOnNCD_07Syxn/exec'; 
-const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquE/formResponse';
+const GOOGLE_FORM_URL = 'https://docs.google.com/forms/u/0/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquQ/formResponse';
 const SPREADSHEET_ID = '1gMbbI0dUtwry8lEv-u2HpHf5hE9X74tTwiil886NQzK'; 
 const SHEET_GID_REPORT = '800815817';
 
@@ -584,3 +584,4 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error("Kesinti formu (kesinti-form) bulunamadı.");
     }
 });
+
