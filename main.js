@@ -55,16 +55,24 @@ function generateCaptcha() {
     
     const captchaLabel = document.getElementById('captcha-label');
     
-    // HTML'de bu ID'nin var olduğundan emin olun!
     if (captchaLabel) {
         captchaLabel.textContent = `Güvenlik Sorusu: ${num1} + ${num2} = ?`;
     } else {
         console.warn("Captcha label ID'si (captcha-label) bulunamadı. HTML'i kontrol edin.");
     }
 
-    document.getElementById('captcha').value = ''; // Input'u temizle
+    document.getElementById('captcha').value = ''; 
 }
 
+function checkCaptcha(answer) {
+    // Captcha cevabının sayı olduğundan ve null olmadığından emin ol
+    return currentCaptchaAnswer !== null && Number(answer) === currentCaptchaAnswer;
+}
+
+
+// ===================================================================
+// HARİTA VE KONUM YÖNETİMİ
+// ===================================================================
 
 function isWithinTurkeyBounds(lat, lng) {
     const minLat = TURKEY_BOUNDS[0][0]; 
@@ -138,18 +146,105 @@ function initMap() {
     }
 }
 
+function onMapClick(e) {
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
+
+    if (isWithinTurkeyBounds(lat, lng)) {
+        updateMarkerAndFields(lat, lng);
+    } else {
+        if (marker) {
+            map.removeLayer(marker);
+            marker = null;
+        }
+        selectedCoords = null;
+        document.getElementById('selected-location').innerText = 'Seçilen Konum: Belirtilmedi';
+        document.getElementById('il').value = '';
+        document.getElementById('ilce').value = '';
+        
+        L.popup()
+            .setLatLng(e.latlng)
+            .setContent("⚠️ Lütfen Türkiye sınırları içinde bir konum seçin.")
+            .openOn(map);
+
+        showMessage('Kesinti bildirimi için lütfen Türkiye haritası içinde bir nokta seçiniz.', 'danger');
+    }
+}
+
+function updateMarkerAndFields(lat, lng) {
+    if (typeof lat !== 'number' || typeof lng !== 'number') {
+        console.error('Geçersiz koordinatlar alındı.');
+        return;
+    }
+
+    selectedCoords = { lat, lng };
+
+    if (marker) {
+        marker.setLatLng([lat, lng]);
+    } else {
+        if (!map) return;
+        marker = L.marker([lat, lng], { icon: CustomIcon }).addTo(map)
+            .bindPopup("Kesinti Konumu").openPopup();
+    }
+
+    document.getElementById('selected-location').innerText = `Seçilen Konum: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    getLocationFromCoords(lat, lng);
+}
+
+function getLocationFromCoords(lat, lng) {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`;
+
+    document.getElementById('il').value = 'Yükleniyor...';
+    document.getElementById('ilce').value = 'Yükleniyor...';
+
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Ters coğrafi kodlama HTTP hatası');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const address = data.address;
+
+            let il = address.state || address.province || address.country_region || "Bilinmiyor";
+            let ilce = address.county || address.state_district || address.city_district || address.city || address.town || address.village || "Bilinmiyor";
+
+            il = sanitizeInput(il);
+            ilce = sanitizeInput(ilce);
+
+            if (ilce === il && ilce !== "Bilinmiyor" && !ilce.includes("Merkez")) {
+                 ilce = "Merkez İlçe / " + ilce;
+            }
+            
+            if (il === "Turkey" || il === "Türkiye") {
+                il = address.province || address.county || "Bilinmiyor";
+            }
+
+            document.getElementById('il').value = il;
+            document.getElementById('ilce').value = ilce;
+        })
+        .catch(error => {
+            console.error('Coğrafi kodlama hatası:', error);
+            document.getElementById('il').value = 'Hata';
+            document.getElementById('ilce').value = 'Hata';
+            showMessage('Konum bilgisi alınamadı. Lütfen haritada daha spesifik bir nokta seçin.', 'danger');
+        });
+}
+
+// ===================================================================
+// VERİ ÇEKME VE HARİTAYA EKLEME
+// ===================================================================
 
 function processSheetData(data) {
     const processedData = [];
     
-    // İlk satır başlık olduğu için 1'den başlanır
     for (let i = 1; i < data.rows.length; i++) {
         const row = data.rows[i].c;
         
         let timestamp = null;
         let tahminiBitisSaati = null; 
         
-        // Başlangıç Zaman Damgası
         if (row[0] && row[0].v) {
             const dateString = row[0].v.replace('Date(', '').replace(')', '');
             const parts = dateString.split(',').map(Number);
@@ -158,16 +253,13 @@ function processSheetData(data) {
             }
         }
         
-        // Tahmini Bitiş Saati (8. sütun = index 7)
         if (row[7] && row[7].v) {
             tahminiBitisSaati = String(row[7].v);
         }
 
-        // Enlem (index 4) ve Boylam (index 5) verilerini güvenli okuma ve bozuk veriyi ele alma
         let enlem = row[4] && row[4].v && !isNaN(Number(row[4].v)) ? Number(row[4].v) : null;
         let boylam = row[5] && row[5].v && !isNaN(Number(row[5].v)) ? Number(row[5].v) : null;
 
-        // "undefined" stringini de yakala
         if (row[4] && String(row[4].v).toLowerCase() === 'undefined') enlem = null;
         if (row[5] && String(row[5].v).toLowerCase() === 'undefined') boylam = null;
 
@@ -236,4 +328,259 @@ function updateMapMarkers(filteredData) {
 
     filteredData.forEach(item => {
         if (item.enlem !== null && item.boylam !== null) {
-            if (!isWithinTurkeyBounds(item.
+            if (!isWithinTurkeyBounds(item.enlem, item.boylam)) {
+                return; 
+            }
+
+            const date = new Date(item.timestamp);
+            const formattedDate = `${date.toLocaleDateString('tr-TR')} ${date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`;
+            
+            const safeIsp = sanitizeInput(item.isp);
+            const safeIl = sanitizeInput(item.il);
+            const safeIlce = sanitizeInput(item.ilce);
+
+
+            const popupContent = `
+                <strong>ISS:</strong> ${safeIsp}<br>
+                <strong>Konum:</strong> ${safeIlce} / ${safeIl}<br>
+                <strong>Bildirim Tarihi:</strong> ${formattedDate}
+            `;
+
+            const latLng = L.latLng(item.enlem, item.boylam);
+
+            L.marker(latLng, { icon: CustomIcon })
+                .bindPopup(popupContent)
+                .addTo(realtimeMarkers);
+
+            bounds.extend(latLng);
+        }
+    });
+
+    if (bounds.isValid()) {
+        const validBounds = L.latLngBounds(TURKEY_BOUNDS);
+        const effectiveBounds = validBounds.isValid() ? bounds.pad(0.1).intersect(validBounds) : bounds.pad(0.1);
+        
+        map.fitBounds(effectiveBounds, { padding: [20, 20], maxZoom: 13 });
+    } else {
+           map.setView(TURKEY_CENTER, 6);
+    }
+}
+
+
+function createLatestReportsTable(data) {
+    const tableDiv = document.getElementById('latest-reports-table');
+    if (!tableDiv) return;
+
+    const displayData = data.slice(0, 10); 
+    
+    if (displayData.length === 0) {
+        tableDiv.innerHTML = '<p class="text-muted">Son 24 saat içinde gösterilecek bildirim verisi bulunamadı.</p>';
+        return;
+    }
+
+    let tableHTML = `
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                    <th>Zaman Damgası</th>
+                    <th>ISP</th>
+                    <th>İl</th>
+                    <th>İlçe</th>
+                    <th>Bşl. Saati</th>
+                    <th>Bitiş Saati</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    displayData.forEach(item => {
+        const date = new Date(item.timestamp);
+        
+        const formattedTimestamp = date.toLocaleDateString('tr-TR') + ' ' + 
+                                       date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+        const baslangicSaati = date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        
+        const bitisSaati = item.tahminiBitisSaati ? item.tahminiBitisSaati.substring(0, 5) : 'Bilinmiyor';
+
+        tableHTML += `
+            <tr>
+                <td>${formattedTimestamp}</td>
+                <td>${sanitizeInput(item.isp)}</td>
+                <td>${sanitizeInput(item.il)}</td>
+                <td>${sanitizeInput(item.ilce)}</td>
+                <td>${baslangicSaati}</td>
+                <td>${bitisSaati}</td>
+            </tr>
+        `;
+    });
+
+    tableHTML += `
+            </tbody>
+        </table>
+    `;
+
+    tableDiv.innerHTML = tableHTML;
+}
+
+function updateGeneralStatistics(totalCount, activeCount) {
+    const totalDiv = document.getElementById('total-reports');
+    const activeDiv = document.getElementById('active-reports');
+
+    if (totalDiv) {
+         totalDiv.textContent = totalCount.toLocaleString('tr-TR');
+    }
+
+    if (activeDiv) {
+         activeDiv.textContent = activeCount.toLocaleString('tr-TR');
+    }
+}
+
+// ===================================================================
+// FORM İŞLEMLERİ VE GÖNDERİM
+// ===================================================================
+
+function sanitizeInput(text) {
+    if (typeof text !== 'string') return text;
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#x27;',
+        "/": '&#x2F;',
+    };
+    const reg = /[&<>"'/]/ig;
+    return text.replace(reg, (match)=>(map[match]));
+}
+
+function showMessage(message, type = 'info') {
+    const messageDiv = document.getElementById('form-message');
+    if (messageDiv) {
+        messageDiv.className = `alert alert-${type}`;
+        messageDiv.innerHTML = message;
+        messageDiv.style.display = 'block';
+        
+        // Birkaç saniye sonra mesajı temizle
+        setTimeout(() => {
+            messageDiv.style.display = 'none';
+        }, 8000);
+    }
+}
+
+function sendDataToGoogleForm(formData) {
+    const submitBtn = document.querySelector('.btn-submit');
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Gönderiliyor...';
+
+    fetch(GOOGLE_FORM_URL, {
+        method: 'POST',
+        body: formData,
+        mode: 'no-cors' 
+    })
+    .then(() => {
+        showMessage('✅ Bildiriminiz başarıyla kaydedildi! Teşekkür ederiz.', 'success');
+        document.getElementById('kesinti-form').reset();
+        generateCaptcha(); // Yeni captcha oluştur
+        selectedCoords = null; // Koordinatları sıfırla
+        if (marker) {
+            map.removeLayer(marker);
+            marker = null;
+        }
+        document.getElementById('selected-location').innerText = 'Seçilen Konum: Belirtilmedi';
+    })
+    .catch(error => {
+        console.error('Form gönderme hatası:', error);
+        showMessage('⚠️ Bildirim gönderilirken bir hata oluştu. Lütfen tekrar deneyin.', 'danger');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Bildirimi Gönder';
+    });
+}
+
+
+function handleSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    
+    // 1. Konum Kontrolü
+    if (!selectedCoords) {
+        showMessage('Lütfen harita üzerinde kesintinin yaşandığı konumu seçin.', 'danger');
+        return;
+    }
+
+    // 2. Captcha Kontrolü
+    const captchaInput = document.getElementById('captcha');
+    if (!checkCaptcha(captchaInput.value)) {
+        showMessage('Hatalı güvenlik kodu (Captcha). Lütfen tekrar deneyin.', 'danger');
+        generateCaptcha(); // Yeni Captcha oluştur
+        captchaInput.value = '';
+        return;
+    }
+
+    // 3. Tarih/Saat Ayırma ve Form Data Oluşturma
+    const kesintiTarihiTime = document.getElementById('kesintiTarihi').value; 
+    const [datePart, timePart] = kesintiTarihiTime.split('T'); 
+    const [year, month, day] = datePart.split('-');
+    const [hour, minute] = timePart.split(':');
+
+    const tahminiBitisSaati = document.getElementById('tahminiBitisSaati').value;
+    let tahminiBitisHour = '';
+    let tahminiBitisMinute = '';
+
+    if (tahminiBitisSaati) {
+        [tahminiBitisHour, tahminiBitisMinute] = tahminiBitisSaati.split(':');
+    }
+
+    const formData = new FormData();
+    
+    // Konum verileri
+    formData.append(FORM_ENTRY_IDS.enlem, selectedCoords.lat);
+    formData.append(FORM_ENTRY_IDS.boylam, selectedCoords.lng);
+
+    // Diğer form verileri
+    formData.append(FORM_ENTRY_IDS.isp, form.elements.isp.value);
+    formData.append(FORM_ENTRY_IDS.il, form.elements.il.value);
+    formData.append(FORM_ENTRY_IDS.ilce, form.elements.ilce.value);
+    formData.append(FORM_ENTRY_IDS.aciklama, form.elements.aciklama.value);
+    
+    // Tarih/Saat verileri
+    formData.append(FORM_ENTRY_IDS.kesintiTarihi_year, year);
+    formData.append(FORM_ENTRY_IDS.kesintiTarihi_month, parseInt(month, 10)); // Ay 1-12
+    formData.append(FORM_ENTRY_IDS.kesintiTarihi_day, day);
+    formData.append(FORM_ENTRY_IDS.baslangicSaati_hour, hour);
+    formData.append(FORM_ENTRY_IDS.baslangicSaati_minute, minute);
+
+    // Tahmini Bitiş Saati (Opsiyonel)
+    if (tahminiBitisSaati) {
+        formData.append(FORM_ENTRY_IDS.tahminiBitisSaati_hour, tahminiBitisHour);
+        formData.append(FORM_ENTRY_IDS.tahminiBitisSaati_minute, tahminiBitisMinute);
+    }
+
+
+    sendDataToGoogleForm(formData);
+}
+
+// ===================================================================
+// BAŞLANGIÇ İŞLEMLERİ (ENTRY POINT)
+// ===================================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM içeriği yüklendi. Harita, Captcha ve Form başlatılıyor...");
+    
+    // 1. Güvenliği (Captcha) Başlat
+    generateCaptcha(); 
+    
+    // 2. Haritayı Başlat
+    initMap(); 
+    
+    // 3. Form Gönderimini Dinle
+    const form = document.getElementById('kesinti-form');
+    if (form) {
+        form.addEventListener('submit', handleSubmit);
+    } else {
+        console.error("Kesinti formu (kesinti-form) bulunamadı.");
+    }
+});
