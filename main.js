@@ -121,16 +121,25 @@ function initMap() {
 function processSheetData(data) {
     const processedData = [];
     
+    // İlk satır başlık olduğu için 1'den başlanır
     for (let i = 1; i < data.rows.length; i++) {
         const row = data.rows[i].c;
         
         let timestamp = null;
+        let tahminiBitisSaati = null; 
+        
+        // Başlangıç Zaman Damgası
         if (row[0] && row[0].v) {
             const dateString = row[0].v.replace('Date(', '').replace(')', '');
             const parts = dateString.split(',').map(Number);
             if (parts.length >= 6) {
                 timestamp = new Date(parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]).getTime();
             }
+        }
+        
+        // Tahmini Bitiş Saati (8. sütun = index 7)
+        if (row[7] && row[7].v) {
+            tahminiBitisSaati = String(row[7].v);
         }
 
         processedData.push({
@@ -139,7 +148,8 @@ function processSheetData(data) {
             il: row[2] ? String(row[2].v) : 'Bilinmiyor',
             ilce: row[3] ? String(row[3].v) : 'Bilinmiyor',
             enlem: row[4] ? Number(row[4].v) : null,
-            boylam: row[5] ? Number(row[5].v) : null
+            boylam: row[5] ? Number(row[5].v) : null,
+            tahminiBitisSaati: tahminiBitisSaati 
         });
     }
     return processedData;
@@ -240,28 +250,56 @@ function updateMapMarkers(filteredData) {
 
 function updateLeaderboard(last24HoursData) {
     const leaderboardDiv = document.getElementById('leaderboard');
-    const ispCounts = {};
+    const ispTotalDuration = {}; // Kesinti süresini saat cinsinden tutacak
 
     last24HoursData.forEach(item => {
         const ispName = sanitizeInput(item.isp) || 'Bilinmiyor';
-        ispCounts[ispName] = (ispCounts[ispName] || 0) + 1;
+        
+        let durationHours = 0;
+        
+        // Yalnızca Bitiş Saati belirtilmişse hesapla
+        if (item.timestamp && item.tahminiBitisSaati) {
+            const [bitisHourStr, bitisMinuteStr] = item.tahminiBitisSaati.split(':').map(s => s.padStart(2, '0'));
+
+            const startTime = new Date(item.timestamp);
+            
+            // Başlangıç gününü ve bitiş saatini kullanarak bir Bitiş Tarihi oluştururuz
+            let endTime = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate(),
+                                   parseInt(bitisHourStr), parseInt(bitisMinuteStr), 0);
+            
+            // Eğer bitiş saati, başlangıç saatinden küçükse (yani kesinti ertesi güne sarkmışsa)
+            // Bitiş tarihini 1 gün ileri al.
+            if (endTime.getTime() < startTime.getTime()) {
+                 endTime.setDate(endTime.getDate() + 1);
+            }
+
+            // Süreyi milisaniye cinsinden hesapla
+            const durationMs = endTime.getTime() - startTime.getTime();
+            
+            // Milisaniyeyi saate çevir
+            durationHours = durationMs / (1000 * 60 * 60);
+        }
+
+        // Toplam süreyi ISS'ye ekle
+        ispTotalDuration[ispName] = (ispTotalDuration[ispName] || 0) + durationHours;
     });
 
-    const sortedIspCounts = Object.entries(ispCounts)
-        .sort(([, countA], [, countB]) => countB - countA);
+    const sortedIspDurations = Object.entries(ispTotalDuration)
+        // Süreye göre büyükten küçüğe sırala
+        .sort(([, durationA], [, durationB]) => durationB - durationA);
 
-    let leaderboardHTML = `<h3 class="leaderboard-title">En Çok Bildirim Alan ISP'ler (Son 24 Saat)</h3>`;
+    let leaderboardHTML = `<h3 class="leaderboard-title">En Çok Kesinti Süresi Olan ISP'ler (Son 24 Saat, Top 3)</h3>`;
 
-    if (sortedIspCounts.length === 0) {
-        leaderboardHTML += `<p>Son 24 saat içinde haritada gösterilebilecek bildirim yapılmamıştır.</p>`;
-    }
-    // Sınır kontrolü yapıldığı için sadece Türkiye'den gelen veriler burada listelenir.
-    else {
-        sortedIspCounts.slice(0, 10).forEach(([isp, count]) => {
+    if (sortedIspDurations.length === 0) {
+        leaderboardHTML += `<p>Son 24 saat içinde hesaplanabilir kesinti süresi olan bildirim yapılmamıştır.</p>`;
+    } else {
+        // Sadece Top 3'ü göster
+        sortedIspDurations.slice(0, 3).forEach(([isp, totalHours], index) => {
             leaderboardHTML += `
                 <div class="leaderboard-item">
+                    <span class="rank-number">#${index + 1}</span>
                     <span class="isp-name">${isp}</span>
-                    <span class="count">${count} Bildirim</span>
+                    <span class="count">${totalHours.toFixed(1)} Saat</span>
                 </div>
             `;
         });
@@ -407,8 +445,8 @@ function sendDataToGoogleForm(data) {
     const month = kesintiDate.getMonth() + 1; 
     const day = kesintiDate.getDate();
 
-    const formattedMonth = month.toString().padStart(2, '0'); // Ör: 5 -> 05
-    const formattedDay = day.toString().padStart(2, '0');     // Ör: 9 -> 09
+    const formattedMonth = month.toString().padStart(2, '0'); 
+    const formattedDay = day.toString().padStart(2, '0');     
     
     // Saat ve dakika
     const baslangicSaati_hour = kesintiDate.getHours().toString().padStart(2, '0');
@@ -426,7 +464,7 @@ function sendDataToGoogleForm(data) {
     formData.append(FORM_ENTRY_IDS.boylam, data.boylam);
     formData.append(FORM_ENTRY_IDS.aciklama, sanitizedAciklama);
 
-    // Güncellenen Tarih Gönderimi
+    // Güncellenen Tarih Gönderimi (GG/AA/YYYY)
     formData.append(FORM_ENTRY_IDS.kesintiTarihi_year, year);
     formData.append(FORM_ENTRY_IDS.kesintiTarihi_month, formattedMonth); 
     formData.append(FORM_ENTRY_IDS.kesintiTarihi_day, formattedDay); 
