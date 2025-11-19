@@ -1,17 +1,24 @@
 // ===================================================================
-// GOOGLE FORM VE TABLO ID'LERİ (Düzeltildi: GOOGLE_FORM_URL aktifleştirildi)
+// GOOGLE FORM VE TABLO ID'LERİ
 // ===================================================================
-// ARTIK BU URL, KENDİ YAYINLANMIŞ APPS SCRIPT WEB UYGULAMANIZDIR.
+// Apps Script Web Uygulamanızın URL'si (Veri Çekme için)
 const DATA_SOURCE_URL = 'https://script.google.com/macros/s/AKfycbyBXAmcSHJ8e5jg8XgPmilhNmsfzfutNtv_K-yiErkeOZCWCWoh2lbyLOnNCD_07Syxn/exec'; 
 
-// Hata Düzeltme: sendDataToGoogleForm fonksiyonunun çalışması için GOOGLE_FORM_URL aktifleştirildi.
+// Google Form Gönderim URL'si (Veri Kaydı için)
 const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquE/formResponse';
 const SPREADSHEET_ID = '1gMbbI0dUtwry8lEv-u2HpHf5hE9X74tTwiil886NQzK'; 
 const SHEET_GID = '800815817';
 
-// Güvenlik sorusu cevabı
+// Güvenlik sorusu cevabı (5 + 3 = 8)
 const CAPTCHA_ANSWER = 8; 
 
+// HARİTA MARKER'I İÇİN ÖZEL ICON TANIMI (Yeni Eklendi/Güncellendi)
+const CustomIcon = L.icon({
+    iconUrl: 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi4z0BCtKjXZKLcT4UVf9vvPGwAHwBAn7enbRhVHkURDndCW_Thte3Sgt5YDb3iYUarlIyvFNqgrLd49ZWXLYRIUdNu0rDCahIrxuUNvt7z1eE3_OAtRn6kiIhW_o_i8MKRAJDCb3BFgIlbVdD9C0fNjHogoCk2_WeVuHp3dwT2zWeJGPog7LJE6B-dhcJc/s81/isp_mim.png',
+    iconSize: [40, 40], 
+    iconAnchor: [20, 40], 
+    popupAnchor: [0, -40] 
+});
 
 const FORM_ENTRY_IDS = {
     isp: 'entry.1321343715',
@@ -241,7 +248,8 @@ function updateMapMarkers(filteredData) {
 
             const latLng = L.latLng(item.enlem, item.boylam);
 
-            L.marker(latLng)
+            // GÜNCELLENDİ: CustomIcon kullanıldı
+            L.marker(latLng, { icon: CustomIcon })
                 .bindPopup(popupContent)
                 .addTo(realtimeMarkers);
 
@@ -258,12 +266,6 @@ function updateMapMarkers(filteredData) {
            map.setView(TURKEY_CENTER, 6);
     }
 }
-
-/**
- * Verilen verilerden sadece istenen sütunları içeren dinamik bir HTML tablosu oluşturur.
- * (Kalan fonksiyonlar (createLatestReportsTable, updateLeaderboard, updateGeneralStatistics, onMapClick, updateMarkerAndFields, getLocationFromCoords, sanitizeInput, sendDataToGoogleForm, showMessage, form event listener ve DOMContentLoaded) Kalanı Aynıdır)
- * ... (Aynı kalır) ...
- */
 
 function createLatestReportsTable(data) {
     const tableDiv = document.getElementById('latest-reports-table');
@@ -420,9 +422,11 @@ function updateMarkerAndFields(lat, lng) {
 
     if (marker) {
         marker.setLatLng([lat, lng]);
+        // Marker güncellendiğinde CustomIcon zaten korunur
     } else {
         if (!map) return;
-        marker = L.marker([lat, lng]).addTo(map)
+        // GÜNCELLENDİ: CustomIcon kullanıldı
+        marker = L.marker([lat, lng], { icon: CustomIcon }).addTo(map)
             .bindPopup("Kesinti Konumu").openPopup();
     }
 
@@ -589,10 +593,8 @@ document.getElementById('kesinti-form').addEventListener('submit', function(e) {
     const kesintiTarihiRaw = document.getElementById('kesintiTarihi').value;
     const tahminiBitisSaati = document.getElementById('tahminiBitisSaati').value;
     const aciklama = document.getElementById('aciklama').value;
-    // Güncelleme: Değişken kullanıldı
     const captchaInput = parseInt(document.getElementById('captcha').value); 
 
-    // Güncelleme: Değişken kullanıldı
     if (captchaInput !== CAPTCHA_ANSWER) {
         showMessage('Güvenlik Sorusu cevabı yanlış! Lütfen tekrar deneyin.', 'danger');
         return;
