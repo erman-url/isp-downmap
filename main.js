@@ -1,14 +1,16 @@
 // ===================================================================
-// GOOGLE FORM VE TABLO ID'LERİ
+// GOOGLE FORM VE TABLO ID'LERİ (Düzeltildi: GOOGLE_FORM_URL aktifleştirildi)
 // ===================================================================
 // ARTIK BU URL, KENDİ YAYINLANMIŞ APPS SCRIPT WEB UYGULAMANIZDIR.
 const DATA_SOURCE_URL = 'https://script.google.com/macros/s/AKfycbyBXAmcSHJ8e5jg8XgPmilhNmsfzfutNtv_K-yiErkeOZCWCWoh2lbyLOnNCD_07Syxn/exec'; 
 
+// Hata Düzeltme: sendDataToGoogleForm fonksiyonunun çalışması için GOOGLE_FORM_URL aktifleştirildi.
+const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquE/formResponse';
+const SPREADSHEET_ID = '1gMbbI0dUtwry8lEv-u2HpHf5hE9X74tTwiil886NQzK'; 
+const SHEET_GID = '800815817';
 
-//const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquE/formResponse';
-//const SPREADSHEET_ID = '1gMbbI0dUtwry8lEv-u2HpHf5hE9X74tTwiil886NQzK'; 
-//const SHEET_GID = '800815817';
-
+// Güvenlik sorusu cevabı
+const CAPTCHA_ANSWER = 8; 
 
 
 const FORM_ENTRY_IDS = {
@@ -253,7 +255,7 @@ function updateMapMarkers(filteredData) {
         
         map.fitBounds(effectiveBounds, { padding: [20, 20], maxZoom: 13 });
     } else {
-         map.setView(TURKEY_CENTER, 6);
+           map.setView(TURKEY_CENTER, 6);
     }
 }
 
@@ -293,7 +295,7 @@ function createLatestReportsTable(data) {
         const date = new Date(item.timestamp);
         
         const formattedTimestamp = date.toLocaleDateString('tr-TR') + ' ' + 
-                                   date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                                       date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
         const baslangicSaati = date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
         
@@ -489,8 +491,8 @@ function sendDataToGoogleForm(data) {
     messageDiv.style.display = 'none';
     
     if (!selectedCoords || isNaN(data.enlem) || isNaN(data.boylam) || data.il === 'Hata' || data.ilce === 'Hata') {
-         showMessage('Lütfen haritada geçerli bir konum seçin ve İl/İlçe bilgisinin otomatik dolmasını bekleyin.', 'danger');
-         return;
+          showMessage('Lütfen haritada geçerli bir konum seçin ve İl/İlçe bilgisinin otomatik dolmasını bekleyin.', 'danger');
+          return;
     }
 
 
@@ -505,7 +507,7 @@ function sendDataToGoogleForm(data) {
     const day = kesintiDate.getDate();
 
     const formattedMonth = month.toString().padStart(2, '0'); 
-    const formattedDay = day.toString().padStart(2, '0');     
+    const formattedDay = day.toString().padStart(2, '0');       
     
     const baslangicSaati_hour = kesintiDate.getHours().toString().padStart(2, '0');
     const baslangicSaati_minute = kesintiDate.getMinutes().toString().padStart(2, '0');
@@ -587,9 +589,11 @@ document.getElementById('kesinti-form').addEventListener('submit', function(e) {
     const kesintiTarihiRaw = document.getElementById('kesintiTarihi').value;
     const tahminiBitisSaati = document.getElementById('tahminiBitisSaati').value;
     const aciklama = document.getElementById('aciklama').value;
-    const captchaInput = parseInt(document.getElementById('captcha').value);
+    // Güncelleme: Değişken kullanıldı
+    const captchaInput = parseInt(document.getElementById('captcha').value); 
 
-    if (captchaInput !== 8) {
+    // Güncelleme: Değişken kullanıldı
+    if (captchaInput !== CAPTCHA_ANSWER) {
         showMessage('Güvenlik Sorusu cevabı yanlış! Lütfen tekrar deneyin.', 'danger');
         return;
     }
@@ -603,8 +607,8 @@ document.getElementById('kesinti-form').addEventListener('submit', function(e) {
     const selectedDate = new Date(kesintiTarihiRaw);
 
     if (selectedDate > now) {
-         showMessage('Kesinti başlangıç tarihi ve saati gelecek bir zaman olamaz.', 'danger');
-         return;
+          showMessage('Kesinti başlangıç tarihi ve saati gelecek bir zaman olamaz.', 'danger');
+          return;
     }
     
     if (isp === '') {
