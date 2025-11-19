@@ -15,7 +15,7 @@ const FORM_ENTRY_IDS = {
   tahminiBitisSaati_minute: "entry.126525220_minute"
 };
 
-// Google Sheets CSV URL'niz - LÜTFEN KENDİ URL'NİZ İLE DEĞİŞTİRİN
+// !!! KULLANICININ DOĞRULANMIŞ URL'Sİ BURAYA YERLEŞTİRİLDİ !!!
 const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS0Jvaf_CyFyWoYxeG49QZCM-jaSk4SM_FzIf3XA2bR1D0-mT6XDyz-D2vEn4Lqm1MFZ1UtCcULauYX/pub?gid=800815817&single=true&output=csv";
 
 let map, marker = null, selectedCoords = null;
@@ -208,25 +208,22 @@ function csvToReports(csv) {
 
   // Başlık satırı (Header)
   const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-  console.log("Bulunan Başlıklar (Sheets'ten):", headers); // HATA AYIKLAMA İÇİN EKLENDİ
+  console.log("Bulunan Başlıklar (Sheets'ten):", headers);
 
   // Veri satırları
   const reports = [];
   
-  // ÖNEMLİ: Sheets'inizdeki Sütun Başlıkları
-  // LÜTFEN AŞAĞIDAKİ TEPİTLERİ KENDİ GOOGLE SHEETS SÜTUN BAŞLIKLARINIZLA EŞLEŞTİRİN!
-  // Başlıklar BÜYÜK/KÜÇÜK harf, Türkçe karakter ve boşluk açısından BİREBİR aynı olmalıdır.
-  // Sizin listeniz: Zaman damgası, ISP , İl , İlçe ,Enlem(Lat),Boylam (Lng),Kesinti Tarihi,Başlangıç Saati,Bitiş Saati ,Puan
-  const timestampCol = 'Zaman damgası'; // Başlangıç zamanı için kullanılacak
+  // Sizin Sheets Başlıklarınızla Eşleşen Sabitler:
+  const timestampCol = 'Zaman damgası'; // Başlangıç zamanı için kullanılacak (Formun oluşturduğu)
   const ispCol = 'ISP'; 
   const ilCol = 'İl';
   const ilceCol = 'İlçe';
-  const tahminiBitisCol = 'Bitiş Saati'; // Tahmini bitiş saati için kullanılacak
-  const kesintiTarihiCol = 'Kesinti Tarihi'; // Tarih bilgisi için
+  const tahminiBitisCol = 'Bitiş Saati'; // Tahmini bitiş saati için
+  const kesintiTarihiCol = 'Kesinti Tarihi'; // Tarih bilgisi için (GG.AA.YYYY veya YYYY-MM-DD beklenir)
 
   // Kontrol: Gerekli başlıklar Sheets'ten gelen listede var mı?
   if (!headers.includes(timestampCol) || !headers.includes(ispCol) || !headers.includes(ilCol) || !headers.includes(kesintiTarihiCol)) {
-      console.error(`Gerekli sütun başlıkları bulunamadı. Lütfen kontrol edin.`);
+      console.error(`Gerekli sütun başlıkları bulunamadı. Lütfen Sheets dosyanızdaki başlıkları (özellikle Türkçe karakter, boşluk ve büyük/küçük harf) kod ile BİREBİR eşleştirin.`);
       showAlert("Sheets başlıkları ile kodun beklediği başlıklar eşleşmiyor. Konsolu kontrol edin.", false);
       return [];
   }
@@ -243,19 +240,19 @@ function csvToReports(csv) {
     });
 
     const isp = entry[ispCol];
-    const timestamp = entry[timestampCol]; // GG.AA.YYYY S:D:S formatında beklenir
+    const timestamp = entry[timestampCol]; 
     const il = entry[ilCol];
     const ilce = entry[ilceCol];
-    const tahminiBitisSaati = entry[tahminiBitisCol]; // S:D veya S:D:S formatında beklenir
-    const kesintiTarihi = entry[kesintiTarihiCol]; // YYYY-MM-DD veya GG.AA.YYYY formatında beklenir
+    const tahminiBitisSaati = entry[tahminiBitisCol]; 
+    const kesintiTarihi = entry[kesintiTarihiCol]; 
 
     if (isp && timestamp && kesintiTarihi) {
         let start = null;
         let end = null;
         
         try {
-            // Başlangıç Tarihini ve Saatini Zaman Damgası Sütunundan Alıyoruz
-            // Zaman damgası: 19.02.2025 10:30:00 (Varsayılan Sheets formatı)
+            // 1. BAŞLANGIÇ ZAMANI (timestampCol ile belirlenen Formun Zaman Damgası)
+            // Varsayılan Sheets formatı: GG.AA.YYYY S:D:S
             const [datePart, timePart] = timestamp.split(' ');
             const [day, month, year] = datePart.split('.');
             
@@ -264,11 +261,11 @@ function csvToReports(csv) {
             start = new Date(isoDate).toISOString();
             
             if (tahminiBitisSaati) {
-                // Bitiş tarihi için Kesinti Tarihi sütununu kullan
+                // 2. BİTİŞ ZAMANI (kesintiTarihiCol ve tahminiBitisCol'u birleştirerek)
                 let [kesintiYil, kesintiAy, kesintiGun] = [year, month, day];
                 
-                // Kesinti Tarihi'nin formatını kontrol edip ayrıştır
-                if (kesintiTarihi.includes('.')) { // GG.AA.YYYY formatı
+                // Kesinti Tarihi'ni ayrıştır (eğer GG.AA.YYYY formatında geliyorsa)
+                if (kesintiTarihi.includes('.')) { 
                     [kesintiGun, kesintiAy, kesintiYil] = kesintiTarihi.split('.');
                 } else if (kesintiTarihi.includes('-')) { // YYYY-MM-DD formatı
                     [kesintiYil, kesintiAy, kesintiGun] = kesintiTarihi.split('-');
@@ -277,7 +274,7 @@ function csvToReports(csv) {
                 // Tahmini bitiş saati (örn: "17:00") kesinti tarihi ile birleştirilir.
                 let endDt = new Date(`${kesintiYil}-${kesintiAy.padStart(2, '0')}-${kesintiGun.padStart(2, '0')}T${tahminiBitisSaati}:00`);
                 
-                // Eğer tahmini bitiş saati, başlangıç saatiyle aynı günde daha küçükse, bir sonraki güne atarız.
+                // Bitiş saati, başlangıç saatinin bulunduğu günden önceyse bir sonraki güne atarız.
                 if (endDt.getTime() < new Date(start).getTime()) {
                     endDt.setDate(endDt.getDate() + 1);
                 }
@@ -293,7 +290,7 @@ function csvToReports(csv) {
         il: il,
         ilce: ilce,
         start: start,
-        end: end // null veya bitiş saati
+        end: end 
       });
     }
   }
@@ -303,16 +300,28 @@ function csvToReports(csv) {
 
 
 // Google Sheets'ten veriyi çeken, işleyen ve tabloları güncelleyen ana fonksiyon
-function loadAndProcessSheetData() {
-    fetch(GOOGLE_SHEETS_CSV_URL)
-        .then(res => {
+async function loadAndProcessSheetData() {
+    const maxRetries = 3;
+    let lastError = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            console.log(`Sheets verisi yükleniyor (Deneme: ${attempt + 1}/${maxRetries})`);
+            
+            const res = await fetch(GOOGLE_SHEETS_CSV_URL);
+            
             if (!res.ok) {
-                console.error("HTTP Hatası:", res.status, res.statusText);
-                throw new Error("Ağ hatası: Sheets API'sine ulaşılamadı (Durum: " + res.status + "). Web'de Yayınla ayarınızı kontrol edin.");
+                const statusText = res.statusText || "Bilinmeyen Durum";
+                // 400-599 aralığındaki hatalarda daha net uyarı
+                let errorMsg = `Ağ hatası: Sheets API'sine ulaşılamadı (Durum: ${res.status} - ${statusText}).`;
+                if (res.status === 403 || res.status === 404) {
+                     errorMsg += " Lütfen Sheets dosyanızın 'Web'de Yayınla' ayarını kontrol edin.";
+                }
+                throw new Error(errorMsg);
             }
-            return res.text(); // CSV formatı olduğu için text olarak çekiyoruz
-        })
-        .then(csvText => {
+            
+            const csvText = await res.text();
+            
             if (!csvText || csvText.length < 50) { 
                  throw new Error("CSV içeriği boş veya beklenenden kısa. Erişimde sorun olabilir.");
             }
@@ -333,13 +342,24 @@ function loadAndProcessSheetData() {
             // Tabloları güncelleyen ana fonksiyonu çağır
             updateLeaderboards(processedData);
             console.log("Veri başarıyla yüklendi ve işlendi. Toplam rapor:", reports.length);
+            
+            // Başarılı olursa döngüden çık
+            return; 
 
-        })
-        .catch(err => {
-            console.error("Sheets verisi yüklenemedi/işlenemedi:", err.message);
-            // Hata mesajını daha detaylı göster
-            showAlert("Veri yüklenemedi: Google Sheets CSV'ye erişim hatası veya format bozuk. Lütfen Konsol'daki detayları ve Sheets başlıklarını kontrol edin. Hata: " + err.message, false);
-        });
+        } catch (err) {
+            lastError = err;
+            console.warn(`Veri yükleme başarısız (Deneme ${attempt + 1}):`, err.message);
+            if (attempt < maxRetries - 1) {
+                // Yeniden denemeden önce bekle (Exponential backoff)
+                const delay = Math.pow(2, attempt) * 1000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+
+    // Maksimum deneme sayısından sonra hala hata varsa kullanıcıya bildir
+    console.error("Maksimum deneme sayısına ulaşıldı. Veri yüklenemedi:", lastError.message);
+    showAlert(`Kalıcı Hata: Sheets verisi yüklenemedi. URL doğruysa, sorun büyük olasılıkla iFrame/CORS kısıtlamalarından kaynaklanıyor. Hata: ${lastError.message}`, false);
 }
 
 
