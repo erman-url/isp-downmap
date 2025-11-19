@@ -1,4 +1,4 @@
-// Google Form gönderim URL'si (Değişmedi)
+// Google Form gönderim URL'si (Değişmedi - Form gönderimi hala Sheets'e yapılacaktır)
 const GOOGLE_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquQ/formResponse";
 
@@ -15,8 +15,8 @@ const FORM_ENTRY_IDS = {
   tahminiBitisSaati_minute: "entry.126525220_minute"
 };
 
-// !!! KULLANICININ DOĞRULANMIŞ URL'Sİ BURAYA YERLEŞTİRİLDİ !!!
-const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS0Jvaf_CyFyWoYxeG49QZCM-jaSk4SM_FzIf3XA2bR1D0-mT6XDyz-D2vEn4Lqm1MFZ1UtCcULauYX/pub?gid=800815817&single=true&output=csv";
+// Harici Google Sheets URL'si kaldırıldı. Veri kaynağı artık yerel JSON dosyasıdır.
+const LOCAL_JSON_DATA_URL = "./data.json"; 
 
 let map, marker = null, selectedCoords = null;
 
@@ -147,6 +147,7 @@ document.getElementById("kesinti-form").addEventListener("submit", e => {
   if (!kesintiTarihi) return showAlert("Kesinti tarihi boş olamaz.");
 
   const dt = new Date(kesintiTarihi);
+  // Kullanıcının gelecekteki bir kesintiyi bildirmesini engelle.
   if (dt > new Date()) return showAlert("Kesinti tarihi gelecekte olamaz.");
 
   const formData = new URLSearchParams();
@@ -164,7 +165,6 @@ document.getElementById("kesinti-form").addEventListener("submit", e => {
   formData.append(FORM_ENTRY_IDS.kesintiTarihi_day, day);
 
   // Time input'tan (HH:MM) gelen değeri saat ve dakika olarak parçala
-  // Formda başlangıç saati olmadığı için bu kısmı şimdiki zamandan alıyoruz
   const now = new Date();
   formData.append(FORM_ENTRY_IDS.baslangicSaati_hour, now.getHours());
   formData.append(FORM_ENTRY_IDS.baslangicSaati_minute, now.getMinutes());
@@ -175,9 +175,10 @@ document.getElementById("kesinti-form").addEventListener("submit", e => {
     formData.append(FORM_ENTRY_IDS.tahminiBitisSaati_minute, m);
   }
 
+  // Google Form'a gönderim (bu hala Sheets'e yazar)
   fetch(GOOGLE_FORM_URL, { method: "POST", mode: "no-cors", body: formData })
     .then(() => {
-      showAlert("Bildirim başarıyla gönderildi! Verilerin tabloda görünmesi birkaç saniye sürebilir.", true);
+      showAlert("Bildirim başarıyla gönderildi! Veriler Sheets'e kaydedildi. **Ön yüzdeki tablonun güncellenmesi için data.json dosyasını manuel olarak güncellemeniz GEREKİR.**", true);
       document.getElementById("kesinti-form").reset();
       document.getElementById("il").value = "";
       document.getElementById("ilce").value = "";
@@ -189,144 +190,128 @@ document.getElementById("kesinti-form").addEventListener("submit", e => {
       document.getElementById("selected-location").textContent =
         "Seçilen Konum: Belirtilmedi";
       
-      // Form gönderildikten sonra verileri yeniden yükle
+      // Form gönderildikten sonra verileri yeniden yükle (data.json'ı okuyacak)
       loadAndProcessSheetData(); 
     })
     .catch(() => showAlert("Gönderimde hata oluştu."));
 });
 
 /**
- * Google Sheets'ten gelen CSV verisini ayrıştırır ve rapor dizisine dönüştürür.
+ * Sheets verisindeki nesneleri (JSON'dan gelen) işleyerek rapor dizisine dönüştürür.
+ * Data.json'dan gelen verinin işlenmesi.
  */
-function csvToReports(csv) {
-  // CSV satırlarını ayır ve boş olanları filtrele
-  const lines = csv.split('\n').filter(line => line.trim() !== '');
-  if (lines.length < 2) {
-      console.error("CSV okunamadı veya başlık satırı dışında veri yok.");
-      return [];
-  }
-
-  // Başlık satırı (Header)
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-  console.log("Bulunan Başlıklar (Sheets'ten):", headers);
-
-  // Veri satırları
-  const reports = [];
-  
-  // Sizin Sheets Başlıklarınızla Eşleşen Sabitler:
-  const timestampCol = 'Zaman damgası'; // Başlangıç zamanı için kullanılacak (Formun oluşturduğu)
-  const ispCol = 'ISP'; 
-  const ilCol = 'İl';
-  const ilceCol = 'İlçe';
-  const tahminiBitisCol = 'Bitiş Saati'; // Tahmini bitiş saati için
-  const kesintiTarihiCol = 'Kesinti Tarihi'; // Tarih bilgisi için (GG.AA.YYYY veya YYYY-MM-DD beklenir)
-
-  // Kontrol: Gerekli başlıklar Sheets'ten gelen listede var mı?
-  if (!headers.includes(timestampCol) || !headers.includes(ispCol) || !headers.includes(ilCol) || !headers.includes(kesintiTarihiCol)) {
-      console.error(`Gerekli sütun başlıkları bulunamadı. Lütfen Sheets dosyanızdaki başlıkları (özellikle Türkçe karakter, boşluk ve büyük/küçük harf) kod ile BİREBİR eşleştirin.`);
-      showAlert("Sheets başlıkları ile kodun beklediği başlıklar eşleşmiyor. Konsolu kontrol edin.", false);
-      return [];
-  }
-
-
-  for (let i = 1; i < lines.length; i++) {
-    // Tırnak içindeki virgülleri göz ardı ederek ayırma işlemi
-    const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/"/g, ''));
-    if (values.length !== headers.length) continue; // Hatalı satırları atla
-
-    const entry = {};
-    headers.forEach((header, index) => {
-      entry[header] = values[index];
-    });
-
-    const isp = entry[ispCol];
-    const timestamp = entry[timestampCol]; 
-    const il = entry[ilCol];
-    const ilce = entry[ilceCol];
-    const tahminiBitisSaati = entry[tahminiBitisCol]; 
-    const kesintiTarihi = entry[kesintiTarihiCol]; 
-
-    if (isp && timestamp && kesintiTarihi) {
-        let start = null;
-        let end = null;
-        
-        try {
-            // 1. BAŞLANGIÇ ZAMANI (timestampCol ile belirlenen Formun Zaman Damgası)
-            // Varsayılan Sheets formatı: GG.AA.YYYY S:D:S
-            const [datePart, timePart] = timestamp.split(' ');
-            const [day, month, year] = datePart.split('.');
-            
-            // Başlangıç tarihi için ISO formatı oluştur (YYYY-MM-DDTHH:mm:ss)
-            const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${timePart.split(':').slice(0, 2).join(':')}:00`;
-            start = new Date(isoDate).toISOString();
-            
-            if (tahminiBitisSaati) {
-                // 2. BİTİŞ ZAMANI (kesintiTarihiCol ve tahminiBitisCol'u birleştirerek)
-                let [kesintiYil, kesintiAy, kesintiGun] = [year, month, day];
-                
-                // Kesinti Tarihi'ni ayrıştır (eğer GG.AA.YYYY formatında geliyorsa)
-                if (kesintiTarihi.includes('.')) { 
-                    [kesintiGun, kesintiAy, kesintiYil] = kesintiTarihi.split('.');
-                } else if (kesintiTarihi.includes('-')) { // YYYY-MM-DD formatı
-                    [kesintiYil, kesintiAy, kesintiGun] = kesintiTarihi.split('-');
-                }
-
-                // Tahmini bitiş saati (örn: "17:00") kesinti tarihi ile birleştirilir.
-                let endDt = new Date(`${kesintiYil}-${kesintiAy.padStart(2, '0')}-${kesintiGun.padStart(2, '0')}T${tahminiBitisSaati}:00`);
-                
-                // Bitiş saati, başlangıç saatinin bulunduğu günden önceyse bir sonraki güne atarız.
-                if (endDt.getTime() < new Date(start).getTime()) {
-                    endDt.setDate(endDt.getDate() + 1);
-                }
-                end = endDt.toISOString();
-            }
-        } catch (e) {
-            console.warn("Tarih/Saat ayrıştırma hatası:", e, "Orijinal Değerler:", timestamp, tahminiBitisSaati, kesintiTarihi);
-            continue; 
-        }
-
-      reports.push({
-        isp: isp,
-        il: il,
-        ilce: ilce,
-        start: start,
-        end: end 
-      });
+function processReportsFromJSON(data) {
+    let rawReports = data; // Başlangıçta gelen veriyi al
+    
+    // Eğer gelen veri bir dizi değilse, içinde 'reports' anahtarı olup olmadığını kontrol et.
+    // Bu, kullanıcının eski JSON yapısını (bir nesne) kullanması durumunda geri uyumluluk sağlar.
+    if (!Array.isArray(data) && data && data.reports && Array.isArray(data.reports)) {
+        console.warn("JSON kök yapısı nesne olarak algılandı. 'reports' dizisi kullanılacak.");
+        rawReports = data.reports;
+    } else if (!Array.isArray(data)) {
+         console.error("JSON verisi ne düz bir dizi ne de 'reports' anahtarı içeren bir nesne. İşlenemiyor.");
+         return [];
     }
-  }
 
-  return reports;
+    const reports = [];
+    
+    // Sheets'teki sütun başlıklarınızla eşleşen sabitler:
+    const timestampCol = 'Zaman damgası';
+    const ispCol = 'ISP'; 
+    const ilCol = 'İl';
+    const ilceCol = 'İlçe';
+    const tahminiBitisCol = 'Bitiş Saati'; 
+    const kesintiTarihiCol = 'Kesinti Tarihi';
+
+    if (rawReports.length === 0) {
+        return [];
+    }
+
+    for (const entry of rawReports) {
+        const isp = entry[ispCol];
+        const timestamp = entry[timestampCol]; 
+        const il = entry[ilCol];
+        const ilce = entry[ilceCol];
+        const tahminiBitisSaati = entry[tahminiBitisCol]; 
+        const kesintiTarihi = entry[kesintiTarihiCol]; 
+
+        // Gerekli alanların varlığını kontrol et
+        if (isp && timestamp && kesintiTarihi) {
+            let start = null;
+            let end = null;
+            
+            try {
+                // 1. BAŞLANGIÇ ZAMANI (Formun Zaman Damgası: GG.AA.YYYY HH:mm:ss)
+                const [datePart, timePart] = timestamp.split(' ');
+                // split('.') sonucu gün, ay, yıl formatında gelmeli
+                const [day, month, year] = datePart.split('.');
+                
+                // Başlangıç tarihi için Date nesnesini oluştur
+                // Dikkat: JavaScript new Date(string) formatı YYYY-MM-DD ister.
+                const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${timePart.split(':').slice(0, 2).join(':')}:00`;
+                start = new Date(isoDate).toISOString();
+                
+                if (tahminiBitisSaati) {
+                    // 2. BİTİŞ ZAMANI (kesintiTarihiCol ve tahminiBitisCol'u birleştirerek)
+                    // Kesinti Tarihi'ni ayrıştır (GG.AA.YYYY formatı)
+                    const [kesintiGun, kesintiAy, kesintiYil] = kesintiTarihi.split('.');
+
+                    // Tahmini bitiş saati (örn: "17:00") kesinti tarihi ile birleştirilir.
+                    let endDt = new Date(`${kesintiYil}-${kesintiAy.padStart(2, '0')}-${kesintiGun.padStart(2, '0')}T${tahminiBitisSaati}:00`);
+                    
+                    // Bitiş saati, başlangıç saatiyle aynı günde ve başlangıç saatinden küçükse 
+                    // (örneğin, bildirim 23:00'da yapıldı, bitiş tahmini 01:00) bir sonraki güne atarız.
+                    if (endDt.getTime() < new Date(start).getTime()) {
+                        endDt.setDate(endDt.getDate() + 1);
+                    }
+                    end = endDt.toISOString();
+                }
+            } catch (e) {
+                console.warn("Tarih/Saat ayrıştırma hatası:", e, "Orijinal Değerler:", timestamp, tahminiBitisSaati, kesintiTarihi);
+                continue; // Hatalı kaydı atla
+            }
+
+          reports.push({
+            isp: isp,
+            il: il,
+            ilce: ilce,
+            start: start,
+            end: end 
+          });
+        }
+    }
+    return reports;
 }
 
 
-// Google Sheets'ten veriyi çeken, işleyen ve tabloları güncelleyen ana fonksiyon
+// JSON dosyasından veriyi çeken, işleyen ve tabloları güncelleyen ana fonksiyon
 async function loadAndProcessSheetData() {
     const maxRetries = 3;
     let lastError = null;
 
+    // Arayüzdeki istatistikleri ve leaderboard'ı sıfırla
+    document.getElementById("totalReports").textContent = 0;
+    document.getElementById("activeOutages").textContent = 0;
+    document.getElementById("leaderboard").innerHTML = '<div class="leaderboard-item">Veri Yükleniyor...</div>';
+    document.getElementById("topISP").innerHTML = '<div>Veri yok</div>';
+    document.getElementById("topLOC").innerHTML = '<div>Veri yok</div>';
+
+
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-            console.log(`Sheets verisi yükleniyor (Deneme: ${attempt + 1}/${maxRetries})`);
+            console.log(`Yerel JSON verisi yükleniyor (Deneme: ${attempt + 1}/${maxRetries})`);
             
-            const res = await fetch(GOOGLE_SHEETS_CSV_URL);
+            // Yerel JSON dosyasını çekiyoruz
+            const res = await fetch(LOCAL_JSON_DATA_URL);
             
             if (!res.ok) {
                 const statusText = res.statusText || "Bilinmeyen Durum";
-                // 400-599 aralığındaki hatalarda daha net uyarı
-                let errorMsg = `Ağ hatası: Sheets API'sine ulaşılamadı (Durum: ${res.status} - ${statusText}).`;
-                if (res.status === 403 || res.status === 404) {
-                     errorMsg += " Lütfen Sheets dosyanızın 'Web'de Yayınla' ayarını kontrol edin.";
-                }
-                throw new Error(errorMsg);
+                throw new Error(`Yerel veri yüklenemedi (Durum: ${res.status} - ${statusText}).`);
             }
             
-            const csvText = await res.text();
+            const jsonData = await res.json(); // JSON olarak oku
             
-            if (!csvText || csvText.length < 50) { 
-                 throw new Error("CSV içeriği boş veya beklenenden kısa. Erişimde sorun olabilir.");
-            }
-            
-            const reports = csvToReports(csvText);
+            const reports = processReportsFromJSON(jsonData);
             
             // Raporları işleyerek istatistikleri ve tabloları oluştur
             const activeOutages = reports.filter(r => r.end === null || (r.end && new Date(r.end) > new Date())).length;
@@ -359,7 +344,10 @@ async function loadAndProcessSheetData() {
 
     // Maksimum deneme sayısından sonra hala hata varsa kullanıcıya bildir
     console.error("Maksimum deneme sayısına ulaşıldı. Veri yüklenemedi:", lastError.message);
-    showAlert(`Kalıcı Hata: Sheets verisi yüklenemedi. URL doğruysa, sorun büyük olasılıkla iFrame/CORS kısıtlamalarından kaynaklanıyor. Hata: ${lastError.message}`, false);
+    showAlert(`Yerel Veri Hatası: data.json dosyasına erişilemedi veya formatı hatalı. Hata: ${lastError.message}`, false);
+    
+    // Veri yüklenemezse tabloyu boşalt
+    document.getElementById("leaderboard").innerHTML = '<div>Veri yükleme başarısız.</div>';
 }
 
 
@@ -383,6 +371,10 @@ function updateLeaderboards(data) {
     div.innerHTML = `<b>${item.isp}</b><span>${item.count} Bildirim</span>`;
     lb.appendChild(div);
   });
+  
+  if (sortedIspCounts.length === 0) {
+      lb.innerHTML = '<div>Bildirim bulunmuyor.</div>';
+  }
 
   // İstatistikleri güncelleme
   document.getElementById("totalReports").textContent =
