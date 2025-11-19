@@ -1,7 +1,9 @@
-// Google Form gönderim URL'si (Değişmedi - Form gönderimi hala Sheets'e yapılacaktır)
+// LÜTFEN BU URL'Yİ VE AŞAĞIDAKİ ID'LERİ KENDİ GÜNCEL GOOGLE FORM'UNUZDAN ALIN!
+// EĞER VERİ GOOGLE SHEETS'E YAZILMIYORSA, SORUN BU SABİTLERDEDİR.
 const GOOGLE_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquQ/formResponse";
 
+// Kendi formunuzdaki her alanın benzersiz ID'sini (entry.XXXX) buraya girin.
 const FORM_ENTRY_IDS = {
   isp: "entry.1321343715", il: "entry.1048550212", ilce: "entry.1808925592",
   enlem: "entry.119292663", boylam: "entry.1923451466",
@@ -15,7 +17,7 @@ const FORM_ENTRY_IDS = {
   tahminiBitisSaati_minute: "entry.126525220_minute"
 };
 
-// Harici Google Sheets URL'si kaldırıldı. Veri kaynağı artık yerel JSON dosyasıdır.
+// Veri kaynağı artık yerel JSON dosyasıdır.
 const LOCAL_JSON_DATA_URL = "./data.json"; 
 
 let map, marker = null, selectedCoords = null;
@@ -124,11 +126,17 @@ function showAlert(msg, isSuccess = false) {
   box.className = "alert-box " + (isSuccess ? "alert-success" : "");
   box.innerHTML = `<strong>${isSuccess ? "Bilgi" : "Uyarı"}</strong><div>${msg}</div>`;
   alerts.appendChild(box);
-  setTimeout(() => alerts.removeChild(box), 15000);
+  // Uyarıyı 15 saniye ekranda tut
+  setTimeout(() => {
+    if (alerts.contains(box)) {
+      alerts.removeChild(box);
+    }
+  }, 15000); 
 }
 
 function sanitizeText(text) {
-  return text.replace(/[<>]/g, "");
+  // HTML etiketlerini kaldırır.
+  return text.replace(/[<>]/g, ""); 
 }
 
 document.getElementById("kesinti-form").addEventListener("submit", e => {
@@ -142,7 +150,7 @@ document.getElementById("kesinti-form").addEventListener("submit", e => {
   const aciklama = sanitizeText(document.getElementById("aciklama").value);
   const captcha = Number(document.getElementById("captcha").value);
 
-  if (captcha !== 8) return showAlert("CAPTCHA hatalı.");
+  if (captcha !== 8) return showAlert("CAPTCHA hatalı. Lütfen doğru yanıtı girin (5 + 3).");
   if (!selectedCoords) return showAlert("Lütfen haritada bir konum seçin.");
   if (!kesintiTarihi) return showAlert("Kesinti tarihi boş olamaz.");
 
@@ -164,36 +172,44 @@ document.getElementById("kesinti-form").addEventListener("submit", e => {
   formData.append(FORM_ENTRY_IDS.kesintiTarihi_month, month);
   formData.append(FORM_ENTRY_IDS.kesintiTarihi_day, day);
 
-  // Time input'tan (HH:MM) gelen değeri saat ve dakika olarak parçala
+  // Başlangıç Saati: Şu anki saat ve dakikayı al
   const now = new Date();
   formData.append(FORM_ENTRY_IDS.baslangicSaati_hour, now.getHours());
   formData.append(FORM_ENTRY_IDS.baslangicSaati_minute, now.getMinutes());
 
+  // Tahmini Bitiş Saati varsa saat ve dakikayı ekle
   if (tahminiBitisSaati) {
     const [h, m] = tahminiBitisSaati.split(":");
     formData.append(FORM_ENTRY_IDS.tahminiBitisSaati_hour, h);
     formData.append(FORM_ENTRY_IDS.tahminiBitisSaati_minute, m);
   }
 
-  // Google Form'a gönderim (bu hala Sheets'e yazar)
+  // Google Form'a gönderim
   fetch(GOOGLE_FORM_URL, { method: "POST", mode: "no-cors", body: formData })
-    .then(() => {
-      showAlert("Bildirim başarıyla gönderildi! Veriler Sheets'e kaydedildi. **Ön yüzdeki tablonun güncellenmesi için data.json dosyasını manuel olarak güncellemeniz GEREKİR.**", true);
-      document.getElementById("kesinti-form").reset();
-      document.getElementById("il").value = "";
-      document.getElementById("ilce").value = "";
-      selectedCoords = null;
-      if (marker) {
-        map.removeLayer(marker);
-        marker = null;
-      }
-      document.getElementById("selected-location").textContent =
-        "Seçilen Konum: Belirtilmedi";
-      
-      // Form gönderildikten sonra verileri yeniden yükle (data.json'ı okuyacak)
-      loadAndProcessSheetData(); 
+    .then(response => {
+        // 'no-cors' nedeniyle response durumunu kontrol edemeyiz, başarılı kabul ederiz.
+        showAlert("Bildirim gönderildi. **Ancak Sheets'e veri gitmiyorsa, lütfen GOOGLE_FORM_URL ve ID'leri kontrol edin.** Uygulamadaki verilerin güncellenmesi için `data.json` dosyasını manuel olarak güncellemeniz GEREKİR.", true);
+        
+        // Form alanlarını sıfırla
+        document.getElementById("kesinti-form").reset();
+        document.getElementById("il").value = "";
+        document.getElementById("ilce").value = "";
+        selectedCoords = null;
+        if (marker) {
+          map.removeLayer(marker);
+          marker = null;
+        }
+        document.getElementById("selected-location").textContent =
+          "Seçilen Konum: Belirtilmedi";
+        
+        // Form gönderildikten sonra verileri yeniden yükle (data.json'ı okuyacak)
+        loadAndProcessSheetData(); 
     })
-    .catch(() => showAlert("Gönderimde hata oluştu."));
+    .catch(error => {
+        // Bu hata, tarayıcı veya ağ ile ilgili bir sorundur (örneğin URL hatası)
+        const detailedErrorMsg = `Gönderim sırasında KRİTİK HATA oluştu. Bu, URL'nin yanlış olduğunu veya tarayıcı/ağ sorunu olduğunu gösterir. Lütfen GOOGLE_FORM_URL'yi kontrol edin. Hata: ${error.message}`;
+        showAlert(detailedErrorMsg, false);
+    });
 });
 
 /**
@@ -201,10 +217,9 @@ document.getElementById("kesinti-form").addEventListener("submit", e => {
  * Data.json'dan gelen verinin işlenmesi.
  */
 function processReportsFromJSON(data) {
-    let rawReports = data; // Başlangıçta gelen veriyi al
+    let rawReports = data; 
     
-    // Eğer gelen veri bir dizi değilse, içinde 'reports' anahtarı olup olmadığını kontrol et.
-    // Bu, kullanıcının eski JSON yapısını (bir nesne) kullanması durumunda geri uyumluluk sağlar.
+    // JSON yapısı kontrolü: Düz dizi veya 'reports' anahtarı içeren nesne
     if (!Array.isArray(data) && data && data.reports && Array.isArray(data.reports)) {
         console.warn("JSON kök yapısı nesne olarak algılandı. 'reports' dizisi kullanılacak.");
         rawReports = data.reports;
@@ -228,6 +243,7 @@ function processReportsFromJSON(data) {
     }
 
     for (const entry of rawReports) {
+        // Gerekli alanların varlığını kontrol et ve değerleri al
         const isp = entry[ispCol];
         const timestamp = entry[timestampCol]; 
         const il = entry[ilCol];
@@ -235,7 +251,6 @@ function processReportsFromJSON(data) {
         const tahminiBitisSaati = entry[tahminiBitisCol]; 
         const kesintiTarihi = entry[kesintiTarihiCol]; 
 
-        // Gerekli alanların varlığını kontrol et
         if (isp && timestamp && kesintiTarihi) {
             let start = null;
             let end = null;
@@ -243,24 +258,20 @@ function processReportsFromJSON(data) {
             try {
                 // 1. BAŞLANGIÇ ZAMANI (Formun Zaman Damgası: GG.AA.YYYY HH:mm:ss)
                 const [datePart, timePart] = timestamp.split(' ');
-                // split('.') sonucu gün, ay, yıl formatında gelmeli
                 const [day, month, year] = datePart.split('.');
                 
-                // Başlangıç tarihi için Date nesnesini oluştur
-                // Dikkat: JavaScript new Date(string) formatı YYYY-MM-DD ister.
+                // Başlangıç tarihi için ISO formatına çevir ve Date nesnesini oluştur
                 const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${timePart.split(':').slice(0, 2).join(':')}:00`;
                 start = new Date(isoDate).toISOString();
                 
                 if (tahminiBitisSaati) {
                     // 2. BİTİŞ ZAMANI (kesintiTarihiCol ve tahminiBitisCol'u birleştirerek)
-                    // Kesinti Tarihi'ni ayrıştır (GG.AA.YYYY formatı)
                     const [kesintiGun, kesintiAy, kesintiYil] = kesintiTarihi.split('.');
-
+                    
                     // Tahmini bitiş saati (örn: "17:00") kesinti tarihi ile birleştirilir.
                     let endDt = new Date(`${kesintiYil}-${kesintiAy.padStart(2, '0')}-${kesintiGun.padStart(2, '0')}T${tahminiBitisSaati}:00`);
                     
-                    // Bitiş saati, başlangıç saatiyle aynı günde ve başlangıç saatinden küçükse 
-                    // (örneğin, bildirim 23:00'da yapıldı, bitiş tahmini 01:00) bir sonraki güne atarız.
+                    // Bitiş saati, başlangıç saatinden küçükse (bir sonraki gün kesinti bitti demektir), günü bir artırırız.
                     if (endDt.getTime() < new Date(start).getTime()) {
                         endDt.setDate(endDt.getDate() + 1);
                     }
