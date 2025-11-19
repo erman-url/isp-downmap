@@ -9,8 +9,7 @@ const DATA_SOURCE_URL = 'https://script.google.com/macros/s/AKfycbyBXAmcSHJ8e5jg
 //const SPREADSHEET_ID = '1gMbbI0dUtwry8lEv-u2HpHf5hE9X74tTwiil886NQzK'; 
 //const SHEET_GID = '800815817';
 
-// 🚨 ÖNEMLİ: Bu URL'yi, 2. Bölümdeki talimatları izleyerek yayınladığınız KENDİ APPS SCRIPT URL'nizle DEĞİŞTİRİN!
-const DATA_SOURCE_URL = 'https://script.google.com/macros/s/AKfyc.../exec'; // <--- SİZİN YENİ APPS SCRIPT URL'NİZİ BURAYA YAPIŞTIRIN!
+
 
 const FORM_ENTRY_IDS = {
     isp: 'entry.1321343715',
@@ -626,5 +625,6 @@ document.getElementById('kesinti-form').addEventListener('submit', function(e) {
 
     sendDataToGoogleForm(data);
 });
+
 
 document.addEventListener('DOMContentLoaded', initMap);
