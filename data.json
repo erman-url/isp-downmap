@@ -1,0 +1,45 @@
+{
+  "leaderboard": [
+    { "isp": "Turkcell Superonline", "count": 12 },
+    { "isp": "Türk Telekom-TTNET", "count": 9 },
+    { "isp": "TURKNET", "count": 7 },
+    { "isp": "Vodafone Net", "count": 5 },
+    { "isp": "Millenicom", "count": 3 }
+  ],
+  
+  "stats": {
+    "totalReports": 36,
+    "activeOutages": 4
+  },
+
+  "reports": [
+    {
+      "isp": "Turkcell Superonline",
+      "il": "İstanbul",
+      "ilce": "Kadıköy",
+      "start": "2025-02-18T08:30:00",
+      "end": "2025-02-18T11:45:00"
+    },
+    {
+      "isp": "Türk Telekom-TTNET",
+      "il": "Ankara",
+      "ilce": "Çankaya",
+      "start": "2025-02-18T07:15:00",
+      "end": null
+    },
+    {
+      "isp": "TURKNET",
+      "il": "İzmir",
+      "ilce": "Bornova",
+      "start": "2025-02-17T23:10:00",
+      "end": "2025-02-18T02:40:00"
+    },
+    {
+      "isp": "Vodafone Net",
+      "il": "Bursa",
+      "ilce": "Nilüfer",
+      "start": "2025-02-18T05:00:00",
+      "end": null
+    }
+  ]
+}
