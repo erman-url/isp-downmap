@@ -1,116 +1,779 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ISP Kesinti Bildirim Haritası</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISP Kesinti Bildirim Haritası (Türkiye)</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 
-  <!-- Dış CSS -->
-  <link rel="stylesheet" href="style.css" />
+    <style>
+        /* CSS Stilleri (Değişiklik yapılmamıştır) */
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
+            --text-color: #212529;
+            --border-radius: 8px;
+            --padding-base: 15px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--light-bg);
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--padding-base);
+        }
+
+        .header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: var(--padding-base) 0;
+            text-align: center;
+            border-bottom-left-radius: var(--border-radius);
+            border-bottom-right-radius: var(--border-radius);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+
+        #map {
+            height: 500px; 
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .content-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .flex-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap; 
+        }
+
+        .flex-item {
+            flex: 1;
+            min-width: 300px; 
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            box-sizing: border-box; 
+        }
+
+        .btn-submit {
+            background-color: var(--success-color);
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+            width: 100%;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            background-color: #218838;
+        }
+
+        .btn-submit:disabled {
+            background-color: var(--secondary-color);
+            cursor: not-allowed;
+        }
+
+        .leaderboard-title {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .leaderboard-item:last-child {
+            border-bottom: none;
+        }
+
+        .isp-name {
+            font-weight: bold;
+        }
+
+        .count {
+            color: var(--danger-color);
+            font-weight: bold;
+        }
+
+        .alert-message {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        #data-status {
+            font-size: 0.9em;
+            color: var(--secondary-color);
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.5em; 
+            }
+
+            #map {
+                height: 300px; 
+            }
+
+            .flex-container {
+                flex-direction: column; 
+                gap: 15px;
+            }
+
+            .flex-item {
+                min-width: 100%;
+            }
+        }
+    </style>
 </head>
-
 <body>
-   <div class="header">
-    <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi4z0BCtKjXZKLcT4UVf9vvPGwAHwBAn7enbRhVHkURDndCW_Thte3Sgt5YDb3iYUarlIyvFNqgrLd49ZWXLYRIUdNu0rDCahIrxuUNvt7z1eE3_OAtRn6kiIhW_o_i8MKRAJDCt3BFgIlbVdD9C0fNjHogoCk2_WeVuHp3dwT2zWeJGPog7LJE6B-dhcJc/s81/isp_mim.png" 
-         alt="ISP Logo" class="logo">
-    <h1 class="header-title">ISP Kesinti Bildirim Haritası</h1>
-  </div>
 
-  <div class="container">
-    <div class="content-section">
-      <div id="map"></div>
-      <div id="selected-location" class="location-info">Seçilen Konum: Belirtilmedi</div>
+    <div class="header">
+        <h1>ISP Kesinti Bildirim Haritası</h1>
     </div>
 
-    <div class="flex-container">
-      <!-- FORM -->
-      <div class="flex-item content-section">
-        <h2>Kesinti Bildirimi Yap</h2>
-        <form id="kesinti-form">
-          
-          <div class="form-group">
-            <label for="isp">İnternet Servis Sağlayıcı:</label>
-            <select id="isp" required>
-              <option value="">Seçiniz</option>
-              <option>D-Smart Net</option>
-              <option>DigiTurk Net</option> 
-              <option>Millenicom</option>
-              <option>Netspeed</option> 
-              <option>Turkcell Superonline</option>
-              <option>Türk Telekom-TTNET</option> 
-              <option>TURKNET</option> 
-              <option>Türksat Kablonet</option> 
-              <option>Vodafone Net</option>
-              <option>Diğer</option>
-            </select>
-          </div>
+    <div class="container">
+        
+        <div class="content-section">
+            <p>Haritada bir konum seçin veya arama yapın. Kesintinin tam konumunu işaretlemek için haritaya **tıklayın**.</p>
+            <div id="map"></div>
+            <div id="selected-location" style="margin-top: 10px; font-weight: bold;">
+                Seçilen Konum: Belirtilmedi
+            </div>
+            <div id="data-status">Gerçek zamanlı veriler yükleniyor...</div>
+        </div>
 
-          <div class="form-group">
-            <label for="il">İl:</label>
-            <input id="il" readonly required>
-          </div>
+        <hr> 
 
-          <div class="form-group">
-            <label for="ilce">İlçe:</label>
-            <input id="ilce" readonly required>
-          </div>
+        <div class="flex-container">
+            
+            <div class="flex-item content-section">
+                <h2>Kesinti Bildirimi Yap</h2>
+                <form id="kesinti-form">
+                    <div class="form-group">
+                        <label for="isp">İnternet Servis Sağlayıcı (ISS):</label>
+                        <select id="isp" required>
+                            <option value="">Seçiniz</option>
+                            <option value="Turkcell Superonline">Turkcell Superonline</option>
+                            <option value="Turk Telekom">Türk Telekom</option>
+                            <option value="Vodafone Net">Vodafone Net</option>
+                             <option value="Vodafone Net">DigiTurk Net</option>
+                            <option value="Turksat KabloNet">Turksat KabloNet</option>
+                            <option value="Millenicom">Millenicom</option>
+                            <option value="Turknet">Türknet</option>
+                            <option value="Diğer">Diğer</option>
+                        </select>
+                    </div>
 
-          <div class="form-group">
-            <label for="kesintiTarihi">Kesinti Başlangıç Tarihi:</label>
-            <input type="datetime-local" id="kesintiTarihi" required>
-          </div>
+                    <div class="form-group">
+                        <label for="il">İl (Otomatik Dolacak):</label>
+                        <input type="text" id="il" readonly required>
+                    </div>
 
-          <div class="form-group">
-            <label for="tahminiBitisSaati">Tahmini Bitiş Saati (Opsiyonel):</label>
-            <input type="time" id="tahminiBitisSaati">
-          </div>
+                    <div class="form-group">
+                        <label for="ilce">İlçe (Otomatik Dolacak):</label>
+                        <input type="text" id="ilce" readonly required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="kesintiTarihi">Kesinti Başlangıç Tarihi ve Saati:</label>
+                        <input type="datetime-local" id="kesintiTarihi" required>
+                    </div>
 
-          <div class="form-group">
-            <label for="aciklama">Ek Açıklama:</label>
-            <textarea id="aciklama" rows="3" maxlength="200"></textarea>
-          </div>
+                    <div class="form-group">
+                        <label for="tahminiBitisSaati">Tahmini Bitiş Saati (Opsiyonel):</label>
+                        <input type="time" id="tahminiBitisSaati">
+                    </div>
 
-          <div class="form-group">
-            <label for="captcha">Robot değil misiniz? 5 + 3 = ?</label>
-            <input type="number" id="captcha" required>
-          </div>
+                    <div class="form-group">
+                        <label for="aciklama">Ek Açıklama (Kesinti Nedeni vb.):</label>
+                        <textarea id="aciklama" rows="3" maxlength="200" placeholder="Maksimum 200 karakter."></textarea>
+                    </div>
 
-          <button class="btn-submit" type="submit">Bildirimi Gönder</button>
-        </form>
-      </div>
+                    <div class="form-group">
+                        <label for="captcha">Robot Olmadığınızı Onaylayın (5 + 3 = ?):</label>
+                        <input type="number" id="captcha" required>
+                    </div>
 
-      <!-- LİDERLİK TABLOSU -->
-      <div class="flex-item content-section">
-        <h2>ISS Kesinti Liderlik Tablosu</h2>
-        <div id="leaderboard"></div>
-        <hr>
+                    <div id="form-message" class="alert-message" style="display: none;"></div>
 
-        <h2>Genel İstatistikler</h2>
-        <div id="totalReports" class="stat-primary">0</div>
-        <p>Aktif kesinti:</p>
-        <div id="activeOutages" class="stat-danger">0</div>
+                    <button type="submit" class="btn-submit">Bildirimi Gönder</button>
+                </form>
+            </div>
 
-        <hr>
-        <h2>TOP 3 – En Çok Kesinti Yaşayan ISP (Süre Bazlı)</h2>
-        <div id="topISP"></div>
+            <div class="flex-item content-section">
+                <h2>📢 Gerçek Zamanlı Kesinti Bildirimleri</h2>
+                <p>Kullanıcılar tarafından harita üzerinden bildirilen son veriler aşağıdadır. (Google E-Tablo'dan canlı çekilmiştir.)</p>
+                
+                <div id="real-time-data" style="margin-top: 20px;">
+                    <iframe 
+                        src="https://docs.google.com/spreadsheets/d/e/2PACX-1vS0Jvaf_CyFyWoYxeG49QZCM-jaSk4SM_FzIf3XA2bR1D0-mT6XDyz-D2vEn4Lqm1MFZ1UtCcULauYX/pubhtml?gid=800815817&amp;single=true&amp;widget=true&amp;headers=false" 
+                        width="100%" 
+                        height="400" 
+                        frameborder="0"
+                    ></iframe>
+                </div>
+                <hr>
 
-        <h2>TOP 3 – En Çok Kesinti Olan İl–İlçe</h2>
-        <div id="topLOC"></div>
-      </div>
+                <h2>ISS Kesinti Liderlik Tablosu</h2>
+                <p>Türkiye genelindeki son 24 saat kesinti bildirim sayıları (Simülasyon).</p>
+                
+                <div id="leaderboard">
+                    <h3 class="leaderboard-title">En Çok Bildirim Alan ISP'ler</h3>
+                    
+                    <div class="leaderboard-item">
+                        <span class="isp-name">Türk Telekom</span>
+                        <span class="count">45 Bildirim</span>
+                    </div>
+                    <div class="leaderboard-item">
+                        <span class="isp-name">Turkcell Superonline</span>
+                        <span class="count">28 Bildirim</span>
+                    </div>
+                    <div class="leaderboard-item">
+                        <span class="isp-name">Türknet</span>
+                        <span class="count">15 Bildirim</span>
+                    </div>
+                    <div class="leaderboard-item">
+                        <span class="isp-name">Vodafone Net</span>
+                        <span class="count">12 Bildirim</span>
+                    </div>
+                    <div class="leaderboard-item">
+                        <span class="isp-name">Millenicom</span>
+                        <span class="count">5 Bildirim</span>
+                    </div>
+                    <div class="leaderboard-item">
+                        <span class="isp-name">Turksat KabloNet</span>
+                        <span class="count">4 Bildirim</span>
+                    </div>
+                </div>
+
+                <hr>
+
+                <h2>Genel İstatistikler</h2>
+                <p>Tüm zamanların toplam bildirim sayısı:</p>
+                <div style="font-size: 2em; font-weight: bold; color: var(--primary-color);">12.540</div>
+                <p>Şu an aktif olduğu düşünülen kesinti sayısı:</p>
+                <div style="font-size: 2em; font-weight: bold; color: var(--danger-color);">98</div>
+            </div>
+        </div>
+
     </div>
-  </div>
 
-  <div class="alert-overlay" id="alerts"></div>
+   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
-  <!-- Harita kütüphaneleri -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script>
+    // ===================================================================
+    // GOOGLE FORM VE TABLO ID'LERİ
+    // ===================================================================
+    const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquQ/formResponse';
+    
+    // Bu değerleri Google Form'unuza bağlı E-Tablo URL'nizden almalısınız!
+    const SPREADSHEET_ID = '1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquQ'; // Form URL'indeki ID (1FAIpQLS...quQ)
+    const SHEET_GID = '800815817'; // E-Tablo'nun ilk sekmesinin GID'si
 
-  <!-- Dış JS -->
-  <script src="script.js"></script>
+    // Google Query API URL'si
+    // NOT: Bu URL, tüm tablonun JSON olarak çekilmesini sağlar.
+    const DATA_SOURCE_URL = `https://docs.google.com/spreadsheets/d/e/${SPREADSHEET_ID}/pubg?output=json&gid=${SHEET_GID}`;
 
+
+    const FORM_ENTRY_IDS = {
+        isp: 'entry.1321343715',
+        il: 'entry.1048550212',
+        ilce: 'entry.1808925592',
+        enlem: 'entry.119292663',
+        boylam: 'entry.1923451466',
+        aciklama: 'entry.1702812039',
+        
+        kesintiTarihi_year: 'entry.888686904_year',
+        kesintiTarihi_month: 'entry.888686904_month',
+        kesintiTarihi_day: 'entry.888686904_day',
+        
+        baslangicSaati_hour: 'entry.1555945811_hour',
+        baslangicSaati_minute: 'entry.1555945811_minute',
+
+        tahminiBitisSaati_hour: 'entry.126525220_hour',
+        tahminiBitisSaati_minute: 'entry.126525220_minute'
+    };
+    // ===================================================================
+
+    let map;
+    let marker; 
+    let realtimeMarkers = L.layerGroup(); 
+    let selectedCoords; 
+
+    const TURKEY_CENTER = [39.9334, 32.8597]; 
+    const TURKEY_BOUNDS = [
+        [35.8154, 25.567], 
+        [42.100, 44.811] 
+    ];
+
+    function initMap() {
+        map = L.map('map', {
+            center: TURKEY_CENTER,
+            zoom: 6,
+            minZoom: 6, 
+            maxBounds: TURKEY_BOUNDS, 
+            maxBoundsViscosity: 1.0
+        });
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        L.Control.geocoder({
+            placeholder: "Adres, İl veya İlçe ara...",
+            defaultMarkGeocode: false,
+            collapsed: L.Browser.mobile,
+            geocoder: L.Control.Geocoder.nominatim({
+                serviceUrl: 'https://nominatim.openstreetmap.org/search',
+                countrycodes: 'tr' 
+            })
+        }).on('markgeocode', function(e) {
+            const center = e.geocode.center;
+            map.setView(center, 13);
+            updateMarkerAndFields(center.lat, center.lng);
+        }).addTo(map);
+
+        map.on('click', onMapClick);
+        
+        realtimeMarkers.addTo(map);
+
+        fetchRealTimeMarkers(); 
+    }
+
+    // ===================================================================
+    // YENİ VERİ İŞLEME VE GÜNCELLEME FONKSİYONLARI
+    // ===================================================================
+
+    /**
+     * Google E-Tablo verilerini işler ve bir obje dizisi döndürür.
+     * @param {Object} data - Google Sheets JSON'dan parse edilmiş veri objesi.
+     * @returns {Array} İşlenmiş veri objeleri dizisi.
+     */
+    function processSheetData(data) {
+        const processedData = [];
+        
+        // İlk satır başlık olduğu için 'rows[0]' başlıkları içerir, bu yüzden 'i=1'den başlıyoruz
+        for (let i = 1; i < data.rows.length; i++) {
+            const row = data.rows[i].c;
+            
+            // A Sütunu (Zaman Damgası)
+            let timestamp = null;
+            if (row[0] && row[0].v) {
+                const dateString = row[0].v.replace('Date(', '').replace(')', '');
+                const [year, month, day, hour, minute, second] = dateString.split(',').map(Number);
+                // NOT: Google'da ay 0-11 arasıdır.
+                timestamp = new Date(year, month, day, hour, minute, second).getTime();
+            }
+
+            // G Sütunu (Tahmini Bitiş Saati - Kesintinin aktif olup olmadığını kontrol etmek için)
+            // Tahmini bitiş saati (saat ve dakika) olarak formda ayrı ayrı tutulduğu için bu alan boş gelebilir. 
+            // Bu alana ihtiyacımız yok, ancak Google Form'un kaydettiği tüm sütunlara erişebiliriz. 
+            // Aktif/Pasif durumu basitçe son 24 saat içinde bildirilip bildirilmediğine göre belirleyelim.
+            
+            processedData.push({
+                timestamp: timestamp,
+                isp: row[1] ? row[1].v : 'Bilinmiyor', // B Sütunu: ISS
+                il: row[2] ? row[2].v : 'Bilinmiyor',   // C Sütunu: İl
+                ilce: row[3] ? row[3].v : 'Bilinmiyor', // D Sütunu: İlçe
+                enlem: row[4] ? Number(row[4].v) : null, // E Sütunu: Enlem
+                boylam: row[5] ? Number(row[5].v) : null // F Sütunu: Boylam
+            });
+        }
+        return processedData;
+    }
+
+    /**
+     * Son 24 saatteki verileri filtreler.
+     * @param {Array} allData - processSheetData'dan gelen tüm veriler.
+     * @returns {Array} Son 24 saatteki veriler.
+     */
+    function filterLast24Hours(allData) {
+        const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+        return allData.filter(item => item.timestamp >= twentyFourHoursAgo);
+    }
+    
+    /**
+     * Gerçek zamanlı verileri çeker, haritayı günceller ve istatistikleri hesaplar.
+     */
+    function fetchRealTimeMarkers() {
+        document.getElementById('data-status').textContent = 'Gerçek zamanlı veriler yükleniyor...';
+        
+        fetch(DATA_SOURCE_URL)
+            .then(response => response.text())
+            .then(dataText => {
+                // Google Sheets'ten gelen JSON text'ini temizleyip parse ediyoruz
+                // Google'dan gelen JSON'un başında "google.visualization.Query.setResponse(" kısmı var.
+                const jsonString = dataText.substring(47).slice(0, -2);
+                const data = JSON.parse(jsonString);
+
+                const allData = processSheetData(data.table);
+                const last24HoursData = filterLast24Hours(allData);
+
+                // 1. Harita Markerlarını Güncelle
+                updateMapMarkers(last24HoursData);
+
+                // 2. Liderlik Tablosunu Güncelle
+                updateLeaderboard(last24HoursData);
+
+                // 3. Genel İstatistikleri Güncelle
+                updateGeneralStatistics(allData.length, last24HoursData.length);
+                
+                document.getElementById('data-status').textContent = `Son 24 saatte ${last24HoursData.length} adet kesinti bildirimi haritada gösterildi.`;
+            })
+            .catch(error => {
+                console.error('Gerçek zamanlı veri çekme hatası:', error);
+                document.getElementById('data-status').textContent = '⚠️ Gerçek zamanlı veriler yüklenirken bir hata oluştu.';
+                updateGeneralStatistics(0, 0); // Hata durumunda istatistikleri sıfırla
+            });
+    }
+
+    /**
+     * Harita üzerindeki markerları günceller.
+     * @param {Array} filteredData - Son 24 saatteki kesinti verileri.
+     */
+    function updateMapMarkers(filteredData) {
+        realtimeMarkers.clearLayers(); 
+        
+        let markerCount = 0;
+        
+        filteredData.forEach(item => {
+            if (item.enlem && item.boylam) {
+                
+                const date = new Date(item.timestamp);
+                const formattedDate = `${date.toLocaleDateString('tr-TR')} ${date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`;
+                
+                const popupContent = `
+                    <strong>ISS:</strong> ${item.isp}<br>
+                    <strong>Konum:</strong> ${item.ilce} / ${item.il}<br>
+                    <strong>Bildirim Tarihi:</strong> ${formattedDate}
+                `;
+
+                L.marker([item.enlem, item.boylam])
+                    .bindPopup(popupContent)
+                    .addTo(realtimeMarkers);
+                    
+                markerCount++;
+            }
+        });
+
+        if (markerCount > 0) {
+            map.fitBounds(realtimeMarkers.getBounds());
+        } else {
+            map.setView(TURKEY_CENTER, 6);
+        }
+    }
+
+
+    /**
+     * ISS Kesinti Liderlik Tablosunu günceller.
+     * @param {Array} last24HoursData - Son 24 saatteki kesinti verileri.
+     */
+    function updateLeaderboard(last24HoursData) {
+        const leaderboardDiv = document.getElementById('leaderboard');
+        const ispCounts = {};
+
+        // ISS'lere göre bildirim sayısını hesapla
+        last24HoursData.forEach(item => {
+            const ispName = item.isp || 'Bilinmiyor';
+            ispCounts[ispName] = (ispCounts[ispName] || 0) + 1;
+        });
+
+        // Objeyi [ISS Adı, Sayı] dizisine dönüştür ve sayıya göre sırala (büyükten küçüğe)
+        const sortedIspCounts = Object.entries(ispCounts)
+            .sort(([, countA], [, countB]) => countB - countA);
+
+        // HTML içeriğini oluştur
+        let leaderboardHTML = `<h3 class="leaderboard-title">En Çok Bildirim Alan ISP'ler (Son 24 Saat)</h3>`;
+
+        if (sortedIspCounts.length === 0) {
+            leaderboardHTML += `<p>Son 24 saat içinde bildirim yapılmamıştır.</p>`;
+        } else {
+            // İlk 5 veya 10 sonucu gösterilebilir. Şu an tümünü gösterelim.
+            sortedIspCounts.forEach(([isp, count]) => {
+                leaderboardHTML += `
+                    <div class="leaderboard-item">
+                        <span class="isp-name">${isp}</span>
+                        <span class="count">${count} Bildirim</span>
+                    </div>
+                `;
+            });
+        }
+        
+        leaderboardDiv.innerHTML = leaderboardHTML;
+    }
+
+    /**
+     * Genel İstatistikler bölümünü günceller.
+     * @param {number} totalCount - Tüm zamanların toplam bildirim sayısı.
+     * @param {number} activeCount - Son 24 saatteki (Aktif olduğu varsayılan) bildirim sayısı.
+     */
+    function updateGeneralStatistics(totalCount, activeCount) {
+        // Toplam Bildirim Sayısı
+        const totalDiv = document.querySelector('.flex-item:nth-child(2) > div:nth-child(8)');
+        if (totalDiv) {
+             // totalDiv.nextElementSibling Toplam bildirim sayısı değerini tutan div olmalı
+             totalDiv.nextElementSibling.innerHTML = totalCount.toLocaleString('tr-TR');
+        }
+
+        // Aktif Kesinti Sayısı
+        const activeDiv = document.querySelector('.flex-item:nth-child(2) > div:nth-child(10)');
+        if (activeDiv) {
+            // activeDiv.nextElementSibling Aktif kesinti sayısı değerini tutan div olmalı
+            activeDiv.nextElementSibling.innerHTML = activeCount.toLocaleString('tr-TR');
+        }
+    }
+
+
+    // ===================================================================
+    // MEVCUT FORM İŞLEME FONKSİYONLARI (Değişken ismi hatası düzeltilmiş ve sanitasyon eklenmiş hali)
+    // ===================================================================
+    
+    function onMapClick(e) {
+        updateMarkerAndFields(e.latlng.lat, e.latlng.lng);
+    }
+
+    function updateMarkerAndFields(lat, lng) {
+        selectedCoords = { lat, lng };
+
+        if (marker) {
+            marker.setLatLng([lat, lng]);
+        } else {
+            marker = L.marker([lat, lng]).addTo(map)
+                .bindPopup("Kesinti Konumu").openPopup();
+        }
+
+        document.getElementById('selected-location').innerText = `Seçilen Konum: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        getLocationFromCoords(lat, lng);
+    }
+
+    function getLocationFromCoords(lat, lng) {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const address = data.address;
+                
+                let il = address.state || address.province || "Bilinmiyor";
+                let ilce = address.county || address.state_district || address.city_district || "Bilinmiyor";
+
+                if (ilce === "Bilinmiyor") {
+                    ilce = address.city || address.town || address.village || "Bilinmiyor";
+                }
+
+                if (ilce === il && ilce !== "Bilinmiyor") {
+                    ilce = "Merkez İlçe"; 
+                }
+
+                document.getElementById('il').value = il;
+                document.getElementById('ilce').value = ilce;
+            })
+            .catch(error => {
+                console.error('Coğrafi kodlama hatası:', error);
+                document.getElementById('il').value = 'Hata';
+                document.getElementById('ilce').value = 'Hata';
+            });
+    }
+    
+    // Güvenlik iyileştirmesi için temel sanitasyon fonksiyonu
+    function sanitizeInput(text) {
+        if (typeof text !== 'string') return text;
+        return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function sendDataToGoogleForm(data) {
+        const form = document.getElementById('kesinti-form');
+        const messageDiv = document.getElementById('form-message');
+        const submitBtn = document.querySelector('.btn-submit');
+        messageDiv.style.display = 'none';
+
+        if (!selectedCoords) {
+            showMessage('Lütfen haritada kesinti konumunu işaretleyin.', 'danger');
+            return;
+        }
+
+        submitBtn.disabled = true; 
+        submitBtn.textContent = 'Gönderiliyor...';
+
+
+        const kesintiDate = new Date(data.kesintiTarihiRaw);
+        
+        const baslangicSaati_hour = kesintiDate.getHours().toString().padStart(2, '0');
+        const baslangicSaati_minute = kesintiDate.getMinutes().toString().padStart(2, '0');
+        const tahminiBitisSaati = data.tahminiBitisSaati;
+
+        const sanitizedAciklama = sanitizeInput(data.aciklama);
+
+        const formData = new URLSearchParams();
+        formData.append(FORM_ENTRY_IDS.isp, data.isp);
+        formData.append(FORM_ENTRY_IDS.il, data.il);
+        formData.append(FORM_ENTRY_IDS.ilce, data.ilce);
+        formData.append(FORM_ENTRY_IDS.enlem, data.enlem);
+        formData.append(FORM_ENTRY_IDS.boylam, data.boylam);
+        formData.append(FORM_ENTRY_IDS.aciklama, sanitizedAciklama); 
+
+        formData.append(FORM_ENTRY_IDS.kesintiTarihi_year, kesintiDate.getFullYear());
+        formData.append(FORM_ENTRY_IDS.kesintiTarihi_month, kesintiDate.getMonth() + 1); 
+        formData.append(FORM_ENTRY_IDS.kesintiTarihi_day, kesintiDate.getDate());
+
+        formData.append(FORM_ENTRY_IDS.baslangicSaati_hour, baslangicSaati_hour);
+        formData.append(FORM_ENTRY_IDS.baslangicSaati_minute, baslangicSaati_minute);
+        
+        if (tahminiBitisSaati) {
+            formData.append(FORM_ENTRY_IDS.tahminiBitisSaati_hour, tahminiBitisSaati.split(':')[0]);
+            formData.append(FORM_ENTRY_IDS.tahminiBitisSaati_minute, tahminiBitisSaati.split(':')[1]);
+        }
+        
+        fetch(GOOGLE_FORM_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: formData
+        })
+        .then(() => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Bildirimi Gönder';
+
+            showMessage('Bildirim başarıyla gönderildi! Teşekkür ederiz.', 'success');
+            form.reset();
+            
+            if(marker) {
+                map.removeLayer(marker);
+                marker = null;
+            }
+            selectedCoords = null;
+            document.getElementById('selected-location').innerText = 'Seçilen Konum: Belirtilmedi';
+
+            fetchRealTimeMarkers(); 
+        })
+        .catch(error => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Bildirimi Gönder';
+            
+            console.error('Gönderim sırasında hata oluştu.', error);
+            showMessage('Bildirim gönderilirken bir sorun oluştu. Lütfen tekrar deneyin.', 'danger');
+        });
+    }
+
+    function showMessage(message, type) {
+        const messageDiv = document.getElementById('form-message');
+        messageDiv.textContent = message;
+        messageDiv.className = `alert-message alert-${type}`;
+        messageDiv.style.display = 'block';
+    }
+
+    document.getElementById('kesinti-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const isp = document.getElementById('isp').value;
+        const il = document.getElementById('il').value;
+        const ilce = document.getElementById('ilce').value;
+        const kesintiTarihiRaw = document.getElementById('kesintiTarihi').value;
+        const tahminiBitisSaati = document.getElementById('tahminiBitisSaati').value;
+        const aciklama = document.getElementById('aciklama').value;
+        const captchaInput = parseInt(document.getElementById('captcha').value);
+
+        // 1. CAPTCHA Kontrolü (5 + 3 = 8)
+        if (captchaInput !== 8) {
+            showMessage('CAPTCHA cevabı yanlış! Lütfen tekrar deneyin.', 'danger');
+            return;
+        }
+
+        // 2. Harita Konum Kontrolü
+        if (!selectedCoords || il === 'Bilinmiyor' || il === 'Hata') {
+            showMessage('Lütfen haritada geçerli bir konum seçin ve İl/İlçe bilgisinin dolmasını bekleyin.', 'danger');
+            return;
+        }
+
+        // 3. Tarih Kontrolü
+        const now = new Date();
+        const selectedDate = new Date(kesintiTarihiRaw);
+
+        if (selectedDate > now) {
+             showMessage('Kesinti başlangıç tarihi ve saati gelecek bir zaman olamaz.', 'danger');
+             return;
+        }
+
+        const data = {
+            isp: isp,
+            il: il,
+            ilce: ilce,
+            enlem: selectedCoords.lat,
+            boylam: selectedCoords.lng,
+            aciklama: aciklama,
+            kesintiTarihiRaw: kesintiTarihiRaw,
+            tahminiBitisSaati: tahminiBitisSaati
+        };
+
+        sendDataToGoogleForm(data);
+    });
+
+    document.addEventListener('DOMContentLoaded', initMap);
+
+</script>
 </body>
 </html>
