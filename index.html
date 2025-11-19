@@ -4,135 +4,119 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ISP Kesinti Bildirim Sistemi</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        /* CSS dosyanızdaki stil kodları buraya veya ayrı bir stil dosyasına yerleştirilir */
-        #map { height: 400px; }
-        .alert-message { padding: 10px; margin-top: 10px; border-radius: 5px; }
-        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .leaderboard-title { text-align: center; margin-bottom: 15px; }
-        .leaderboard-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #eee; }
-        .rank-number { font-weight: bold; margin-right: 10px; }
-        .table-responsive { max-height: 400px; overflow-y: auto; } /* Tablonun yüksekliğini sınırla */
-    </style>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    
+    <link rel="stylesheet" href="style.css"> 
 </head>
 <body>
+    <div class="container my-5">
+        <header class="text-center mb-5">
+            <img src="icon.png" alt="İnternet İkonu" style="height: 50px;">
+            <h1>📡 İnternet Kesinti Bildirim Sistemi</h1>
+            <p class="lead">Haritada konum seçerek hızlıca kesinti bildiriminde bulunun.</p>
+        </header>
 
-<div class="container mt-4">
-    <header class="text-center mb-4">
-        <h1>📡 İnternet Kesinti Bildirim Sistemi</h1>
-        <p class="lead">Haritada konum seçerek hızlıca kesinti bildiriminde bulunun.</p>
-    </header>
+        <div class="row">
+            <div class="col-md-5">
+                <h4>#### Kesinti Bildirimi Yap</h4>
+                
+                <div id="selected-location" class="alert alert-info py-2" style="font-size: 0.9em;">
+                    Seçilen Konum: Belirtilmedi
+                </div>
 
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card p-3">
-                <h4>Kesinti Bildirimi Yap</h4>
-                <p id="selected-location">Seçilen Konum: Belirtilmedi</p>
-                <div id="form-message" class="alert-message" style="display:none;"></div>
+                <div id="form-message" class="alert-message" style="display: none;"></div>
                 
                 <form id="kesinti-form">
-                    
-                    <div class="mb-3">
-                        <label for="isp" class="form-label">İnternet Servis Sağlayıcı (ISS):</label>
-                        <select id="isp" name="isp" class="form-select" required>
+                    <div class="form-group">
+                        <label for="isp">İnternet Servis Sağlayıcı (ISS):</label>
+                        <select id="isp" name="isp" class="form-control" required>
                             <option value="">Seçiniz</option>
                             <option value="Turkcell Superonline">Turkcell Superonline</option>
-                            <option value="Turk Telekom">Türk Telekom</option>
+                            <option value="Türk Telekom">Türk Telekom</option>
                             <option value="Vodafone Net">Vodafone Net</option>
                             <option value="Millenicom">Millenicom</option>
-                            <option value="Turksat Kablonet">Türksat Kablonet</option>
+                            <option value="Türksat Kablonet">Türksat Kablonet</option>
                             <option value="Diğer">Diğer</option>
                         </select>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="il" class="form-label">İl (Otomatik Dolacak):</label>
-                        <input type="text" id="il" name="il" class="form-control" readonly required>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="il">İl (Otomatik Dolacak):</label>
+                            <input type="text" id="il" name="il" class="form-control" readonly required>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="ilce">İlçe (Otomatik Dolacak):</label>
+                            <input type="text" id="ilce" name="ilce" class="form-control" readonly required>
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="ilce" class="form-label">İlçe (Otomatik Dolacak):</label>
-                        <input type="text" id="ilce" name="ilce" class="form-control" readonly required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="kesintiTarihi" class="form-label">Kesinti Başlangıç Tarih ve Saati:</label>
+                    <div class="form-group">
+                        <label for="kesintiTarihi">Kesinti Başlangıç Tarih ve Saati:</label>
                         <input type="datetime-local" id="kesintiTarihi" name="kesintiTarihi" class="form-control" required>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="tahminiBitisSaati" class="form-label">Tahmini Bitiş Saati (Opsiyonel):</label>
+                    <div class="form-group">
+                        <label for="tahminiBitisSaati">Tahmini Bitiş Saati (Opsiyonel):</label>
                         <input type="time" id="tahminiBitisSaati" name="tahminiBitisSaati" class="form-control">
                         <small class="form-text text-muted">Sadece saat kısmı (örn: 16:30)</small>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="aciklama" class="form-label">Kısa Açıklama (Opsiyonel):</label>
+
+                    <div class="form-group">
+                        <label for="aciklama">Kısa Açıklama (Opsiyonel):</label>
                         <textarea id="aciklama" name="aciklama" class="form-control" rows="2"></textarea>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="captcha" class="form-label">Güvenlik Sorusu: 5 + 3 = ?</label>
-                        <input type="number" id="captcha" name="captcha" class="form-control" required>
+
+                    <div class="form-group">
+                        <label for="captcha">Güvenlik Sorusu: 5 + 3 = ?</label>
+                        <input type="number" id="captcha" class="form-control" required>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-submit w-100">Bildirimi Gönder</button>
+                    <button type="submit" class="btn btn-primary btn-submit">Bildirimi Gönder</button>
                 </form>
             </div>
-        </div>
 
-        <div class="col-md-6">
-            <div class="card p-3">
-                <h4>Konum Seçimi (Türkiye Sınırları)</h4>
-                <div id="map"></div>
-            </div>
-        </div>
-    </div>
-    
-    <hr>
-    
-    <h2 class="text-center mb-4">Gerçek Zamanlı Durum</h2>
-    <div id="data-status" class="text-center text-muted mb-3">Veri yükleniyor...</div>
+            <div class="col-md-7">
+                <h4>#### Konum Seçimi (Türkiye Sınırları)</h4>
+                <div id="map" style="height: 400px; border-radius: 8px; margin-bottom: 20px;"></div>
 
-    <div class="row mb-4 text-center">
-        <div class="col-6">
-            <div class="card p-3 bg-light">
-                <h5>Toplam Bildirim</h5>
-                <h3 id="total-reports">0</h3>
-            </div>
-        </div>
-        <div class="col-6">
-            <div class="card p-3 bg-light">
-                <h5>Son 24 Saat Aktif</h5>
-                <h3 id="active-reports">0</h3>
-            </div>
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col-md-4">
-            <div id="leaderboard" class="card p-3 mb-4 h-100">
-                </div>
-        </div>
+                <hr>
 
-        <div class="col-md-8">
-            <div class="card p-3 mb-4 h-100">
-                <h4 class="mb-3">📊 Son Bildirimler Tablosu (Son 24 Saat)</h4>
-                <div id="latest-reports-table" class="table-responsive">
+                <div class="realtime-status">
+                    <h2>## Gerçek Zamanlı Durum</h2>
+                    <p id="data-status" class="text-muted">Veri yükleniyor...</p>
+                    
+                    <div class="row text-center mb-4">
+                        <div class="col-6">
+                            <h5>##### Toplam Bildirim</h5>
+                            <h3 id="total-reports">0</h3>
+                        </div>
+                        <div class="col-6">
+                            <h5>##### Son 24 Saat Aktif</h5>
+                            <h3 id="active-reports">0</h3>
+                        </div>
                     </div>
+
+                    <div id="leaderboard" class="mb-4">
+                        </div>
+
+                    <h4>#### 📊 Son Bildirimler Tablosu (Son 24 Saat)</h4>
+                    <div id="latest-reports-table">
+                        <p class="text-muted">Veri bekleniyor...</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-</div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="main.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
