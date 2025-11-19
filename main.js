@@ -61,10 +61,10 @@ function initMap() {
         return;
     }
     
-    // Leaflet kütüphanesi yükleme kontrolü
+    // Leaflet kütüphanesi yükleme kontrolü (L is not defined hatası için kontrol eklendi)
     if (typeof L === 'undefined') {
         console.error("Leaflet kütüphanesi (L) yüklenemedi. CDN bağlantılarını kontrol edin.");
-         mapDiv.innerHTML = '<div style="color: red; text-align: center; padding: 50px;">⚠️ HATA: Harita Kütüphanesi Yüklenemedi.</div>';
+         mapDiv.innerHTML = '<div style="color: red; text-align: center; padding: 50px;">⚠️ HATA: Harita Kütüphanesi Yüklenemedi (L is not defined). Lütfen tarayıcı konsolunu kontrol edin.</div>';
         return;
     }
 
@@ -183,13 +183,13 @@ function fetchRealTimeMarkers() {
 
             updateMapMarkers(last24HoursData);
             updateLeaderboard(last24HoursData);
-            updateGeneralStatistics(allData.length, last24HoursData.length);
+            createLatestReportsTable(last24HoursData); 
 
             document.getElementById('data-status').textContent = `Son 24 saatte ${last24HoursData.length} adet kesinti bildirimi haritada gösterildi. Son güncelleme: ${new Date().toLocaleTimeString('tr-TR')}`;
         })
         .catch(error => {
             console.error('Gerçek zamanlı veri çekme hatası:', error);
-            document.getElementById('data-status').textContent = '⚠️ Gerçek zamanlı veriler yüklenirken bir hata oluştu. Konsolu kontrol edin. (Yerel dosya/CORS hatası olabilir.)';
+            document.getElementById('data-status').textContent = '⚠️ Gerçek zamanlı veriler yüklenirken bir hata oluştu. Lütfen CORS hatası için projeyi bir sunucu (Live Server) üzerinden çalıştırın.';
             updateGeneralStatistics(0, 0); 
         });
 }
@@ -247,6 +247,69 @@ function updateMapMarkers(filteredData) {
     }
 }
 
+/**
+ * Verilen verilerden sadece istenen sütunları içeren dinamik bir HTML tablosu oluşturur.
+ * @param {Array<Object>} data - İşlenecek veri dizisi (processSheetData'dan gelen).
+ */
+function createLatestReportsTable(data) {
+    const tableDiv = document.getElementById('latest-reports-table');
+    if (!tableDiv) return;
+
+    // Sadece son 10 bildirimi gösterelim (tercihe bağlı)
+    const displayData = data.slice(0, 10); 
+    
+    if (displayData.length === 0) {
+        tableDiv.innerHTML = '<p class="text-muted">Son 24 saat içinde gösterilecek bildirim verisi bulunamadı.</p>';
+        return;
+    }
+
+    let tableHTML = `
+        <table class="table table-striped table-sm">
+            <thead>
+                <tr>
+                    <th>Zaman Damgası</th>
+                    <th>ISP</th>
+                    <th>İl</th>
+                    <th>İlçe</th>
+                    <th>Bşl. Saati</th>
+                    <th>Bitiş Saati</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    displayData.forEach(item => {
+        const date = new Date(item.timestamp);
+        
+        // Zaman damgası formatı (Ör: 19.11.2025 15:30)
+        const formattedTimestamp = date.toLocaleDateString('tr-TR') + ' ' + 
+                                   date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+        // Kesinti başlangıç saati (Başlangıç tarihi/saati aynıdır)
+        const baslangicSaati = date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        
+        // Bitiş Saati (E-Tablodan çekilen sadece saat stringidir, ilk 5 karakteri al)
+        const bitisSaati = item.tahminiBitisSaati ? item.tahminiBitisSaati.substring(0, 5) : 'Bilinmiyor';
+
+        tableHTML += `
+            <tr>
+                <td>${formattedTimestamp}</td>
+                <td>${sanitizeInput(item.isp)}</td>
+                <td>${sanitizeInput(item.il)}</td>
+                <td>${sanitizeInput(item.ilce)}</td>
+                <td>${baslangicSaati}</td>
+                <td>${bitisSaati}</td>
+            </tr>
+        `;
+    });
+
+    tableHTML += `
+            </tbody>
+        </table>
+    `;
+
+    tableDiv.innerHTML = tableHTML;
+}
 
 function updateLeaderboard(last24HoursData) {
     const leaderboardDiv = document.getElementById('leaderboard');
@@ -534,7 +597,7 @@ document.getElementById('kesinti-form').addEventListener('submit', function(e) {
     const captchaInput = parseInt(document.getElementById('captcha').value);
 
     if (captchaInput !== 8) {
-        showMessage('CAPTCHA cevabı yanlış! Lütfen tekrar deneyin.', 'danger');
+        showMessage('Güvenlik Sorusu cevabı yanlış! Lütfen tekrar deneyin.', 'danger');
         return;
     }
 
