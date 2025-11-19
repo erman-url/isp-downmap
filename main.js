@@ -254,7 +254,9 @@ function updateLeaderboard(last24HoursData) {
 
     if (sortedIspCounts.length === 0) {
         leaderboardHTML += `<p>Son 24 saat içinde haritada gösterilebilecek bildirim yapılmamıştır.</p>`;
-    } else {
+    }
+    // Sınır kontrolü yapıldığı için sadece Türkiye'den gelen veriler burada listelenir.
+    else {
         sortedIspCounts.slice(0, 10).forEach(([isp, count]) => {
             leaderboardHTML += `
                 <div class="leaderboard-item">
@@ -400,6 +402,15 @@ function sendDataToGoogleForm(data) {
 
     const kesintiDate = new Date(data.kesintiTarihiRaw);
     
+    // Tarih alanları (GG/AA/YYYY formatında parçalayıp iki haneli formatı zorlar)
+    const year = kesintiDate.getFullYear();
+    const month = kesintiDate.getMonth() + 1; 
+    const day = kesintiDate.getDate();
+
+    const formattedMonth = month.toString().padStart(2, '0'); // Ör: 5 -> 05
+    const formattedDay = day.toString().padStart(2, '0');     // Ör: 9 -> 09
+    
+    // Saat ve dakika
     const baslangicSaati_hour = kesintiDate.getHours().toString().padStart(2, '0');
     const baslangicSaati_minute = kesintiDate.getMinutes().toString().padStart(2, '0');
     const tahminiBitisSaati = data.tahminiBitisSaati;
@@ -412,12 +423,13 @@ function sendDataToGoogleForm(data) {
     formData.append(FORM_ENTRY_IDS.il, sanitizeInput(data.il));
     formData.append(FORM_ENTRY_IDS.ilce, sanitizeInput(data.ilce));
     formData.append(FORM_ENTRY_IDS.enlem, data.enlem);
-    formData.append(FORM_ENTRY_IDS.boylam, data.lng);
+    formData.append(FORM_ENTRY_IDS.boylam, data.boylam);
     formData.append(FORM_ENTRY_IDS.aciklama, sanitizedAciklama);
 
-    formData.append(FORM_ENTRY_IDS.kesintiTarihi_year, kesintiDate.getFullYear());
-    formData.append(FORM_ENTRY_IDS.kesintiTarihi_month, kesintiDate.getMonth() + 1);
-    formData.append(FORM_ENTRY_IDS.kesintiTarihi_day, kesintiDate.getDate());
+    // Güncellenen Tarih Gönderimi
+    formData.append(FORM_ENTRY_IDS.kesintiTarihi_year, year);
+    formData.append(FORM_ENTRY_IDS.kesintiTarihi_month, formattedMonth); 
+    formData.append(FORM_ENTRY_IDS.kesintiTarihi_day, formattedDay); 
 
     formData.append(FORM_ENTRY_IDS.baslangicSaati_hour, baslangicSaati_hour);
     formData.append(FORM_ENTRY_IDS.baslangicSaati_minute, baslangicSaati_minute);
