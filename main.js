@@ -2,17 +2,18 @@
 // GOOGLE FORM VE TABLO ID'LERİ
 // ===================================================================
 // Apps Script Web Uygulamanızın URL'si (Veri Çekme için)
+// !! Bu URL, Apps Script'i her yeniden dağıttığınızda güncellenmelidir.
 const DATA_SOURCE_URL = 'https://script.google.com/macros/s/AKfycbyBXAmcSHJ8e5jg8XgPmilhNmsfzfutNtv_K-yiErkeOZCWCWoh2lbyLOnNCD_07Syxn/exec'; 
 
 // Google Form Gönderim URL'si (Veri Kaydı için)
 const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquE/formResponse';
 const SPREADSHEET_ID = '1gMbbI0dUtwry8lEv-u2HpHf5hE9X74tTwiil886NQzK'; 
-const SHEET_GID = '800815817';
+const SHEET_GID_REPORT = '800815817'; // Eğer istatistik sayfanızın GID'si farklıysa buradan güncelleyin.
 
 // Güvenlik sorusu cevabı (5 + 3 = 8)
 const CAPTCHA_ANSWER = 8; 
 
-// HARİTA MARKER'I İÇİN ÖZEL ICON TANIMI (Yeni Eklendi/Güncellendi)
+// HARİTA MARKER'I İÇİN ÖZEL ICON TANIMI
 const CustomIcon = L.icon({
     iconUrl: 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi4z0BCtKjXZKLcT4UVf9vvPGwAHwBAn7enbRhVHkURDndCW_Thte3Sgt5YDb3iYUarlIyvFNqgrLd49ZWXLYRIUdNu0rDCahIrxuUNvt7z1eE3_OAtRn6kiIhW_o_i8MKRAJDCb3BFgIlbVdD9C0fNjHogoCk2_WeVuHp3dwT2zWeJGPog7LJE6B-dhcJc/s81/isp_mim.png',
     iconSize: [40, 40], 
@@ -94,7 +95,7 @@ function initMap() {
                 defaultMarkGeocode: false,
                 collapsed: L.Browser.mobile,
                 geocoder: L.Control.Geocoder.nominatim({
-                    serviceUrl: 'https://nominatim.openstreetmap.org/search',
+                    serviceUrl: 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10', // Geocoder servisini reverse'a çevirdim
                     countrycodes: 'tr'
                 })
             }).on('markgeocode', function(e) {
@@ -200,7 +201,7 @@ function fetchRealTimeMarkers() {
             const last24HoursData = filterLast24Hours(allData);
 
             updateMapMarkers(last24HoursData);
-            updateLeaderboard(last24HoursData);
+            // updateLeaderboard(last24HoursData); // Lider tablosunu şimdilik devre dışı bıraktım
             createLatestReportsTable(last24HoursData); 
             updateGeneralStatistics(allData.length, last24HoursData.length); 
 
@@ -323,56 +324,8 @@ function createLatestReportsTable(data) {
     tableDiv.innerHTML = tableHTML;
 }
 
-function updateLeaderboard(last24HoursData) {
-    const leaderboardDiv = document.getElementById('leaderboard');
-    const ispTotalDuration = {}; 
-
-    last24HoursData.forEach(item => {
-        const ispName = sanitizeInput(item.isp) || 'Bilinmiyor';
-        
-        let durationHours = 0;
-        
-        if (item.timestamp && item.tahminiBitisSaati) {
-            const [bitisHourStr, bitisMinuteStr] = item.tahminiBitisSaati.split(':').map(s => s.padStart(2, '0'));
-
-            const startTime = new Date(item.timestamp);
-            
-            let endTime = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate(),
-                                     parseInt(bitisHourStr), parseInt(bitisMinuteStr), 0);
-            
-            if (endTime.getTime() < startTime.getTime()) {
-                 endTime.setDate(endTime.getDate() + 1);
-            }
-
-            const durationMs = endTime.getTime() - startTime.getTime();
-            
-            durationHours = durationMs / (1000 * 60 * 60);
-        }
-
-        ispTotalDuration[ispName] = (ispTotalDuration[ispName] || 0) + durationHours;
-    });
-
-    const sortedIspDurations = Object.entries(ispTotalDuration)
-        .sort(([, durationA], [, durationB]) => durationB - durationA);
-
-    let leaderboardHTML = `<h3 class="leaderboard-title">En Çok Kesinti Süresi Olan ISP'ler (Son 24 Saat, Top 3)</h3>`;
-
-    if (sortedIspDurations.length === 0) {
-        leaderboardHTML += `<p>Son 24 saat içinde hesaplanabilir kesinti süresi olan bildirim yapılmamıştır.</p>`;
-    } else {
-        sortedIspDurations.slice(0, 3).forEach(([isp, totalHours], index) => {
-            leaderboardHTML += `
-                <div class="leaderboard-item">
-                    <span class="rank-number">#${index + 1}</span>
-                    <span class="isp-name">${isp}</span>
-                    <span class="count">${totalHours.toFixed(1)} Saat</span>
-                </div>
-            `;
-        });
-    }
-
-    leaderboardDiv.innerHTML = leaderboardHTML;
-}
+// updateLeaderboard fonksiyonu şimdilik devre dışı bırakıldı
+// function updateLeaderboard(last24HoursData) { /* ... */ }
 
 function updateGeneralStatistics(totalCount, activeCount) {
     const totalDiv = document.getElementById('total-reports');
