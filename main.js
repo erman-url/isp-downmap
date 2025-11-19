@@ -1,12 +1,16 @@
 // ===================================================================
 // GOOGLE FORM VE TABLO ID'LERİ
 // ===================================================================
-const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquQ/formResponse';
-const SPREADSHEET_ID = '1gMbbI0dUtwry8lEv-u2HpHf5hE9X74tTwiil886NQzK'; 
-const SHEET_GID = '800815817';
+// ARTIK BU URL, KENDİ YAYINLANMIŞ APPS SCRIPT WEB UYGULAMANIZDIR.
+const DATA_SOURCE_URL = 'https://script.google.com/macros/s/AKfycbyBXAmcSHJ8e5jg8XgPmilhNmsfzfutNtv_K-yiErkeOZCWCWoh2lbyLOnNCD_07Syxn/exec'; 
 
-// Google Query API URL'si
-const DATA_SOURCE_URL = `https://docs.google.com/spreadsheets/d/e/${SPREADSHEET_ID}/pubg?output=json&gid=${SHEET_GID}`;
+
+//const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquE/formResponse';
+//const SPREADSHEET_ID = '1gMbbI0dUtwry8lEv-u2HpHf5hE9X74tTwiil886NQzK'; 
+//const SHEET_GID = '800815817';
+
+// 🚨 ÖNEMLİ: Bu URL'yi, 2. Bölümdeki talimatları izleyerek yayınladığınız KENDİ APPS SCRIPT URL'nizle DEĞİŞTİRİN!
+const DATA_SOURCE_URL = 'https://script.google.com/macros/s/AKfyc.../exec'; // <--- SİZİN YENİ APPS SCRIPT URL'NİZİ BURAYA YAPIŞTIRIN!
 
 const FORM_ENTRY_IDS = {
     isp: 'entry.1321343715',
@@ -31,18 +35,11 @@ let realtimeMarkers = L.layerGroup();
 let selectedCoords;
 
 const TURKEY_CENTER = [39.9334, 32.8597];
-// Türkiye'nin yaklaşık coğrafi sınırları (minLat, minLng), (maxLat, maxLng)
 const TURKEY_BOUNDS = [
-    [35.8154, 25.567], // Güneybatı
-    [42.100, 44.811]   // Kuzeydoğu
+    [35.8154, 25.567], 
+    [42.100, 44.811]    
 ];
 
-/**
- * Verilen enlem ve boylamın, tanımlı Türkiye sınırları içinde olup olmadığını kontrol eder.
- * @param {number} lat Enlem
- * @param {number} lng Boylam
- * @returns {boolean} Sınırlar içindeyse true, dışında ise false.
- */
 function isWithinTurkeyBounds(lat, lng) {
     const minLat = TURKEY_BOUNDS[0][0]; 
     const minLng = TURKEY_BOUNDS[0][1]; 
@@ -61,31 +58,28 @@ function initMap() {
         return;
     }
     
-    // Leaflet kütüphanesi yükleme kontrolü (L is not defined hatası için kontrol eklendi)
+    // HTML'deki integrity/crossorigin kaldırıldıktan sonra L tanımlı olmalı
     if (typeof L === 'undefined') {
-        console.error("Leaflet kütüphanesi (L) yüklenemedi. CDN bağlantılarını kontrol edin.");
-         mapDiv.innerHTML = '<div style="color: red; text-align: center; padding: 50px;">⚠️ HATA: Harita Kütüphanesi Yüklenemedi (L is not defined). Lütfen tarayıcı konsolunu kontrol edin.</div>';
+        console.error("Leaflet kütüphanesi (L) yüklenemedi. HTML'deki Leaflet CDN bağlantılarını kontrol edin!");
+        mapDiv.innerHTML = '<div style="color: red; text-align: center; padding: 50px;">⚠️ HATA: Harita Kütüphanesi Yüklenemedi (L is not defined).</div>';
         return;
     }
 
 
     try {
-        // Harita başlatılır
         map = L.map('map', {
             center: TURKEY_CENTER,
             zoom: 6,
             minZoom: 6,
-            maxBounds: TURKEY_BOUNDS, // Haritanın kaydırılabileceği maksimum sınır
+            maxBounds: TURKEY_BOUNDS, 
             maxBoundsViscosity: 1.0
         });
 
-        // Harita katmanı eklenir
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        // Coğrafi Kodlayıcı (Geocoder) eklenir
         if (L.Control.Geocoder) {
             L.Control.geocoder({
                 placeholder: "Adres, İl veya İlçe ara...",
@@ -105,12 +99,13 @@ function initMap() {
         }
         
 
-        map.on('click', onMapClick); // Harita tıklama olayını dinler
+        map.on('click', onMapClick); 
 
         realtimeMarkers.addTo(map);
 
-        // Verileri yüklemeyi dene
         fetchRealTimeMarkers();
+        
+        setInterval(fetchRealTimeMarkers, 60000); 
 
     } catch (e) {
         console.error("Leaflet veya Map başlatma sırasında beklenmedik hata:", e);
@@ -118,6 +113,7 @@ function initMap() {
     }
 }
 
+// GÜNCELLENDİ: Hatalı Enlem/Boylam verilerini ele almak için düzenlendi
 function processSheetData(data) {
     const processedData = [];
     
@@ -133,6 +129,7 @@ function processSheetData(data) {
             const dateString = row[0].v.replace('Date(', '').replace(')', '');
             const parts = dateString.split(',').map(Number);
             if (parts.length >= 6) {
+                // Not: Google Sheets, 0'dan başlayan ay indeksi (0=Ocak) döndürür.
                 timestamp = new Date(parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]).getTime();
             }
         }
@@ -142,13 +139,22 @@ function processSheetData(data) {
             tahminiBitisSaati = String(row[7].v);
         }
 
+        // Enlem (index 4) ve Boylam (index 5) verilerini güvenli okuma ve bozuk veriyi ele alma
+        let enlem = row[4] && row[4].v && !isNaN(Number(row[4].v)) ? Number(row[4].v) : null;
+        let boylam = row[5] && row[5].v && !isNaN(Number(row[5].v)) ? Number(row[5].v) : null;
+
+        // "undefined" stringini de yakala
+        if (row[4] && String(row[4].v).toLowerCase() === 'undefined') enlem = null;
+        if (row[5] && String(row[5].v).toLowerCase() === 'undefined') boylam = null;
+
+
         processedData.push({
             timestamp: timestamp,
             isp: row[1] ? String(row[1].v) : 'Bilinmiyor',
             il: row[2] ? String(row[2].v) : 'Bilinmiyor',
             ilce: row[3] ? String(row[3].v) : 'Bilinmiyor',
-            enlem: row[4] ? Number(row[4].v) : null,
-            boylam: row[5] ? Number(row[5].v) : null,
+            enlem: enlem, 
+            boylam: boylam, 
             tahminiBitisSaati: tahminiBitisSaati 
         });
     }
@@ -157,26 +163,30 @@ function processSheetData(data) {
 
 function filterLast24Hours(allData) {
     const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+    // Enlem ve Boylam null olmayanları filtreler.
     return allData.filter(item => item.timestamp && item.timestamp >= twentyFourHoursAgo && item.enlem && item.boylam);
 }
 
+// GÜNCELLENDİ: Apps Script'ten gelen doğrudan JSON verisini okuyacak şekilde düzenlendi (CORS çözümü)
 function fetchRealTimeMarkers() {
     document.getElementById('data-status').textContent = 'Gerçek zamanlı veriler yükleniyor...';
 
-    // CORS hatası alıyorsanız, bu fonksiyonun sunucu ortamında çalıştığından emin olun.
+    // Artık Apps Script Proxy URL'sine gidiliyor
     fetch(DATA_SOURCE_URL)
         .then(response => {
             if (!response.ok) {
-                throw new Error(`HTTP Hata: ${response.status}`);
+                // HTTP hatası varsa (404, 500 vb.)
+                throw new Error(`HTTP Hata: ${response.status} (Apps Script'e ulaşılamadı)`);
             }
-            return response.text();
+            // Doğrudan JSON yanıtı beklenir
+            return response.json(); 
         })
-        .then(dataText => {
-            const jsonStringMatch = dataText.match(/google\.visualization\.Query\.setResponse\((.*)\);/);
-            if (!jsonStringMatch || jsonStringMatch.length < 2) {
-                throw new Error("Google Sheets yanıt formatı beklenenden farklı.");
+        .then(data => {
+            
+            // Apps Script'ten hata objesi gelirse
+            if (data.error || !data.table) {
+                 throw new Error(`Apps Script Veri Hatası: ${data.error || 'Geçersiz tablo formatı.'}`);
             }
-            const data = JSON.parse(jsonStringMatch[1]);
 
             const allData = processSheetData(data.table);
             const last24HoursData = filterLast24Hours(allData);
@@ -184,12 +194,14 @@ function fetchRealTimeMarkers() {
             updateMapMarkers(last24HoursData);
             updateLeaderboard(last24HoursData);
             createLatestReportsTable(last24HoursData); 
+            updateGeneralStatistics(allData.length, last24HoursData.length); 
 
             document.getElementById('data-status').textContent = `Son 24 saatte ${last24HoursData.length} adet kesinti bildirimi haritada gösterildi. Son güncelleme: ${new Date().toLocaleTimeString('tr-TR')}`;
         })
         .catch(error => {
             console.error('Gerçek zamanlı veri çekme hatası:', error);
-            document.getElementById('data-status').textContent = '⚠️ Gerçek zamanlı veriler yüklenirken bir hata oluştu. Lütfen CORS hatası için projeyi bir sunucu (Live Server) üzerinden çalıştırın.';
+            // Hata mesajını daha anlaşılır yap
+            document.getElementById('data-status').textContent = `⚠️ Veri yüklenirken kritik hata oluştu: ${error.message}. Lütfen Apps Script URL'sini ve Dağıtım ayarlarını kontrol edin.`;
             updateGeneralStatistics(0, 0); 
         });
 }
@@ -208,9 +220,8 @@ function updateMapMarkers(filteredData) {
 
     filteredData.forEach(item => {
         if (item.enlem !== null && item.boylam !== null) {
-            // Sadece Türkiye sınırları içindeki bildirimleri haritada göster
             if (!isWithinTurkeyBounds(item.enlem, item.boylam)) {
-                return; 
+                 return; 
             }
 
             const date = new Date(item.timestamp);
@@ -249,13 +260,14 @@ function updateMapMarkers(filteredData) {
 
 /**
  * Verilen verilerden sadece istenen sütunları içeren dinamik bir HTML tablosu oluşturur.
- * @param {Array<Object>} data - İşlenecek veri dizisi (processSheetData'dan gelen).
+ * (Kalan fonksiyonlar (createLatestReportsTable, updateLeaderboard, updateGeneralStatistics, onMapClick, updateMarkerAndFields, getLocationFromCoords, sanitizeInput, sendDataToGoogleForm, showMessage, form event listener ve DOMContentLoaded) Kalanı Aynıdır)
+ * ... (Aynı kalır) ...
  */
+
 function createLatestReportsTable(data) {
     const tableDiv = document.getElementById('latest-reports-table');
     if (!tableDiv) return;
 
-    // Sadece son 10 bildirimi gösterelim (tercihe bağlı)
     const displayData = data.slice(0, 10); 
     
     if (displayData.length === 0) {
@@ -281,14 +293,11 @@ function createLatestReportsTable(data) {
     displayData.forEach(item => {
         const date = new Date(item.timestamp);
         
-        // Zaman damgası formatı (Ör: 19.11.2025 15:30)
         const formattedTimestamp = date.toLocaleDateString('tr-TR') + ' ' + 
                                    date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
-        // Kesinti başlangıç saati (Başlangıç tarihi/saati aynıdır)
         const baslangicSaati = date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
         
-        // Bitiş Saati (E-Tablodan çekilen sadece saat stringidir, ilk 5 karakteri al)
         const bitisSaati = item.tahminiBitisSaati ? item.tahminiBitisSaati.substring(0, 5) : 'Bilinmiyor';
 
         tableHTML += `
@@ -313,42 +322,34 @@ function createLatestReportsTable(data) {
 
 function updateLeaderboard(last24HoursData) {
     const leaderboardDiv = document.getElementById('leaderboard');
-    const ispTotalDuration = {}; // Kesinti süresini saat cinsinden tutacak
+    const ispTotalDuration = {}; 
 
     last24HoursData.forEach(item => {
         const ispName = sanitizeInput(item.isp) || 'Bilinmiyor';
         
         let durationHours = 0;
         
-        // Yalnızca Bitiş Saati belirtilmişse hesapla
         if (item.timestamp && item.tahminiBitisSaati) {
             const [bitisHourStr, bitisMinuteStr] = item.tahminiBitisSaati.split(':').map(s => s.padStart(2, '0'));
 
             const startTime = new Date(item.timestamp);
             
-            // Başlangıç gününü ve bitiş saatini kullanarak bir Bitiş Tarihi oluştururuz
             let endTime = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate(),
-                                   parseInt(bitisHourStr), parseInt(bitisMinuteStr), 0);
+                                     parseInt(bitisHourStr), parseInt(bitisMinuteStr), 0);
             
-            // Eğer bitiş saati, başlangıç saatinden küçükse (yani kesinti ertesi güne sarkmışsa)
-            // Bitiş tarihini 1 gün ileri al.
             if (endTime.getTime() < startTime.getTime()) {
                  endTime.setDate(endTime.getDate() + 1);
             }
 
-            // Süreyi milisaniye cinsinden hesapla
             const durationMs = endTime.getTime() - startTime.getTime();
             
-            // Milisaniyeyi saate çevir
             durationHours = durationMs / (1000 * 60 * 60);
         }
 
-        // Toplam süreyi ISS'ye ekle
         ispTotalDuration[ispName] = (ispTotalDuration[ispName] || 0) + durationHours;
     });
 
     const sortedIspDurations = Object.entries(ispTotalDuration)
-        // Süreye göre büyükten küçüğe sırala
         .sort(([, durationA], [, durationB]) => durationB - durationA);
 
     let leaderboardHTML = `<h3 class="leaderboard-title">En Çok Kesinti Süresi Olan ISP'ler (Son 24 Saat, Top 3)</h3>`;
@@ -356,7 +357,6 @@ function updateLeaderboard(last24HoursData) {
     if (sortedIspDurations.length === 0) {
         leaderboardHTML += `<p>Son 24 saat içinde hesaplanabilir kesinti süresi olan bildirim yapılmamıştır.</p>`;
     } else {
-        // Sadece Top 3'ü göster
         sortedIspDurations.slice(0, 3).forEach(([isp, totalHours], index) => {
             leaderboardHTML += `
                 <div class="leaderboard-item">
@@ -389,12 +389,8 @@ function onMapClick(e) {
     const lng = e.latlng.lng;
 
     if (isWithinTurkeyBounds(lat, lng)) {
-        // Sınırlar içindeyse işleme devam et
         updateMarkerAndFields(lat, lng);
     } else {
-        // Sınırlar dışındaysa uyarı göster
-        
-        // İşaretleyiciyi sil ve alanları temizle
         if (marker) {
             map.removeLayer(marker);
             marker = null;
@@ -404,13 +400,11 @@ function onMapClick(e) {
         document.getElementById('il').value = '';
         document.getElementById('ilce').value = '';
         
-        // Harita üzerinde pop-up uyarısı göster
         L.popup()
             .setLatLng(e.latlng)
             .setContent("⚠️ Lütfen Türkiye sınırları içinde bir konum seçin.")
             .openOn(map);
 
-        // Form mesaj alanına da uyarı gönder
         showMessage('Kesinti bildirimi için lütfen Türkiye haritası içinde bir nokta seçiniz.', 'danger');
     }
 }
@@ -458,7 +452,11 @@ function getLocationFromCoords(lat, lng) {
             ilce = sanitizeInput(ilce);
 
             if (ilce === il && ilce !== "Bilinmiyor") {
-                ilce = "Merkez İlçe / " + ilce;
+                 ilce = "Merkez İlçe / " + ilce;
+            }
+            
+            if (il === "Turkey" || il === "Türkiye") {
+                il = address.province || address.county || "Bilinmiyor";
             }
 
             document.getElementById('il').value = il;
@@ -503,7 +501,6 @@ function sendDataToGoogleForm(data) {
 
     const kesintiDate = new Date(data.kesintiTarihiRaw);
     
-    // Tarih alanları (GG/AA/YYYY formatında parçalayıp iki haneli formatı zorlar)
     const year = kesintiDate.getFullYear();
     const month = kesintiDate.getMonth() + 1; 
     const day = kesintiDate.getDate();
@@ -511,7 +508,6 @@ function sendDataToGoogleForm(data) {
     const formattedMonth = month.toString().padStart(2, '0'); 
     const formattedDay = day.toString().padStart(2, '0');     
     
-    // Saat ve dakika
     const baslangicSaati_hour = kesintiDate.getHours().toString().padStart(2, '0');
     const baslangicSaati_minute = kesintiDate.getMinutes().toString().padStart(2, '0');
     const tahminiBitisSaati = data.tahminiBitisSaati;
@@ -527,7 +523,6 @@ function sendDataToGoogleForm(data) {
     formData.append(FORM_ENTRY_IDS.boylam, data.boylam);
     formData.append(FORM_ENTRY_IDS.aciklama, sanitizedAciklama);
 
-    // Güncellenen Tarih Gönderimi (GG/AA/YYYY)
     formData.append(FORM_ENTRY_IDS.kesintiTarihi_year, year);
     formData.append(FORM_ENTRY_IDS.kesintiTarihi_month, formattedMonth); 
     formData.append(FORM_ENTRY_IDS.kesintiTarihi_day, formattedDay); 
@@ -543,7 +538,7 @@ function sendDataToGoogleForm(data) {
 
     fetch(GOOGLE_FORM_URL, {
         method: 'POST',
-        mode: 'no-cors',
+        mode: 'no-cors', 
         body: formData
     })
     .then(() => {
@@ -561,7 +556,6 @@ function sendDataToGoogleForm(data) {
         document.getElementById('selected-location').innerText = 'Seçilen Konum: Belirtilmedi';
         document.getElementById('il').value = '';
         document.getElementById('ilce').value = '';
-
 
         setTimeout(fetchRealTimeMarkers, 2000); 
     })
@@ -610,8 +604,8 @@ document.getElementById('kesinti-form').addEventListener('submit', function(e) {
     const selectedDate = new Date(kesintiTarihiRaw);
 
     if (selectedDate > now) {
-          showMessage('Kesinti başlangıç tarihi ve saati gelecek bir zaman olamaz.', 'danger');
-          return;
+         showMessage('Kesinti başlangıç tarihi ve saati gelecek bir zaman olamaz.', 'danger');
+         return;
     }
     
     if (isp === '') {
