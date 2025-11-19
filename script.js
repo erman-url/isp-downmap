@@ -16,7 +16,7 @@ const FORM_ENTRY_IDS = {
 };
 
 // Google Sheets CSV URL'niz - LÜTFEN KENDİ URL'NİZ İLE DEĞİŞTİRİN
-const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS0JVaf_CyFyWoYXeG49QZCM-jaSk4SM_FZlf3XA2bR1DO-mT6XDYz-D2vEN4Lqm1MFZ1UtCcULauYX/pub?gid=800815817&single=true&output=csv";
+const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS0Jvaf_CyFyWoYxeG49QZCM-jaSk4SM_FzIf3XA2bR1D0-mT6XDyz-D2vEn4Lqm1MFZ1UtCcULauYX/pub?gid=800815817&single=true&output=csv";
 
 let map, marker = null, selectedCoords = null;
 
