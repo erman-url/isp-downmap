@@ -16,19 +16,15 @@ const CustomIcon = L.icon({
 });
 
 const FORM_ENTRY_IDS = {
-    isp: 'entry.1321343715',
+     isp: 'entry.1321343715',
     il: 'entry.1048550212',
     ilce: 'entry.1808925592',
-    enlem: 'entry.119292663',
+    enlem: 'entry.119292663', 
     boylam: 'entry.1923451466',
     aciklama: 'entry.1702812039',
-    kesintiTarihi_year: 'entry.888686904_year',
-    kesintiTarihi_month: 'entry.888686904_month',
-    kesintiTarihi_day: 'entry.888686904_day',
-    baslangicSaati_hour: 'entry.1555945811_hour',
-    baslangicSaati_minute: 'entry.1555945811_minute',
-    tahminiBitisSaati_hour: 'entry.126525220_hour',
-    tahminiBitisSaati_minute: 'entry.126525220_minute'
+    kesintiTarihi: 'entry.888686904', 
+    baslangicSaati: 'entry.1555945811', 
+    bitisSaati: 'entry.126525220'
 };
 
 // HARİTA VE VERİ KONTROL DEĞİŞKENLERİ
@@ -194,4 +190,5 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('kesinti-form');
     if (form) form.addEventListener('submit', handleSubmit);
 });
+
 
