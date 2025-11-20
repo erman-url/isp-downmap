@@ -133,7 +133,7 @@ function fetchRealTimeMarkers() {
             // 1. Harita marker'larını güncelle
             updateMapMarkers(last24h);
             
-            // 2. Gerçek Zamanlı Durum tablosunu güncelle (Çözümün ana kısmı)
+            // 2. Gerçek Zamanlı Durum tablosunu güncelle (YENİ EKLEME)
             updateRealtimeTable(last24h); 
         })
         .catch(err => {
@@ -171,7 +171,7 @@ function updateMapMarkers(filteredData) {
 }
 
 // ===================================================================
-// TABLO GÖRÜNTÜLEME FONKSİYONU
+// TABLO GÖRÜNTÜLEME FONKSİYONU (YENİ EKLENEN KISIM)
 // ===================================================================
 function updateRealtimeTable(filteredData) {
     const tableBody = document.getElementById('realtime-table-body');
