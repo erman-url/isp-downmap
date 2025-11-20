@@ -2,7 +2,7 @@
 // GOOGLE FORM VE TABLO ID'LERİ
 // ===================================================================
 const GOOGLE_FORM_URL = 'https://docs.google.com/forms/u/0/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquQ/formResponse';
-const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxkp_feOiipwBBrHBGl3h9QlLzO6VIgwdot2wu4im3m9u3WIzVX6KHvGM-U4zPxw1vC/exec";
+const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyLfWxG8I-Fa5lYFKrqOjHJ3-iUCV6AcreaQDQv7Uhpf5pdv3C52w4JP9vGGf7T31qh/exec";
 
 // GÜVENLİK - DİNAMİK CAPTCHA
 let currentCaptchaAnswer = null; 
@@ -194,3 +194,4 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('kesinti-form');
     if (form) form.addEventListener('submit', handleSubmit);
 });
+
