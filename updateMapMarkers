@@ -129,8 +129,12 @@ function fetchRealTimeMarkers() {
             if (!Array.isArray(data)) throw new Error("Geçersiz veri formatı");
 
             const last24h = data.filter(d => d.timestamp && Date.now() - d.timestamp <= 24*60*60*1000 && d.enlem && d.boylam);
+            
+            // 1. Harita marker'larını güncelle
             updateMapMarkers(last24h);
-            // YENİ FONKSİYON BURADA ÇAĞIRILACAK (B. Adım)
+            
+            // 2. Gerçek Zamanlı Durum tablosunu güncelle (Çözümün ana kısmı)
+            updateRealtimeTable(last24h); 
         })
         .catch(err => {
             console.error(err);
@@ -167,7 +171,7 @@ function updateMapMarkers(filteredData) {
 }
 
 // ===================================================================
-// TABLO GÖRÜNTÜLEME FONKSİYONU (YENİ EKLENEN KISIM)
+// TABLO GÖRÜNTÜLEME FONKSİYONU
 // ===================================================================
 function updateRealtimeTable(filteredData) {
     const tableBody = document.getElementById('realtime-table-body');
