@@ -5,7 +5,7 @@ const DATA_SOURCE_URL = 'https://script.google.com/macros/library/d/1bGP84v5jo7R
 const GOOGLE_FORM_URL = 'https://docs.google.com/forms/u/0/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquQ/formResponse';
 const SPREADSHEET_ID = '1gMbbI0dUtwry8lEv-u2HpHf5hE9X74tTwiil886NQzK'; 
 const SHEET_GID_REPORT = '800815817';
-const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzbZF7mjnmaJ91-3eMqprYerErKpfnLuUrGexoSevzQQn_8XhwtbP0pe2Ym_i-xmvUq/exec";
+const APPS_SCRIPT_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxkp_feOiipwBBrHBGl3h9QlLzO6VIgwdot2wu4im3m9u3WIzVX6KHvGM-U4zPxw1vC/exec";
 
 
 // GÜVENLİK - DİNAMİK CAPTCHA İÇİN DEĞİŞKEN
@@ -586,6 +586,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error("Kesinti formu (kesinti-form) bulunamadı.");
     }
 });
+
 
 
 
