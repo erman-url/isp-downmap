@@ -1,7 +1,7 @@
 // ===================================================================
 // GOOGLE FORM VE TABLO ID'LERİ
 // ===================================================================
-const DATA_SOURCE_URL = 'https://script.google.com/macros/s/AKfycbzugJT6Bkqo_Se0TV7gn6mnqYfE0M2ABzps9P34F_0VcR6atvtlOLml62rGuFTTGhCE/exec'; 
+const DATA_SOURCE_URL = 'https://script.google.com/macros/library/d/1bGP84v5jo7R5YD8yYBr11dEmmdl28XKJJtvbuBawEouYSQJFS2ieI6xc/3'; 
 const GOOGLE_FORM_URL = 'https://docs.google.com/forms/u/0/d/e/1FAIpQLScegs6ds3HEEFHMm-IMI9aEnK3-Otz-LKpqKYnmyWQ9B7zquQ/formResponse';
 const SPREADSHEET_ID = '1gMbbI0dUtwry8lEv-u2HpHf5hE9X74tTwiil886NQzK'; 
 const SHEET_GID_REPORT = '800815817';
@@ -11,7 +11,7 @@ let currentCaptchaAnswer = null;
 
 // HARİTA MARKER'I İÇİN ÖZEL ICON TANIMI
 const CustomIcon = L.icon({
-    iconUrl: 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEi4z0BCtKjXZKLcT4UVf9vvPGwAHwBAn7enbRhVHkURDndCW_Thte3Sgt5YDb3iYUarlIyvFNqgrLd49ZWXLYRIUdNu0rDCahIrxuUNvt7z1eE3_OAtRn6kiIhW_o_i8MKRAJDCb3BFgIlbVdD9C0fNjHogoCk2-WeVuHp3dwT2zWeJGPog7LJE6B-dhcJc/s81/isp_mim.png',
+    iconUrl: '#',
     iconSize: [40, 40], 
     iconAnchor: [20, 40], 
     popupAnchor: [0, -40] 
@@ -584,5 +584,6 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error("Kesinti formu (kesinti-form) bulunamadı.");
     }
 });
+
 
 
