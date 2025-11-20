@@ -98,4 +98,166 @@ function onMapClick(e) {
         document.getElementById('selected-location').innerText = 'Seçilen Konum: Belirtilmedi';
         document.getElementById('il').value = '';
         document.getElementById('ilce').value = '';
-        L.popup().setLatLng(
+        L.popup().setLatLng(e.latlng).setContent("⚠️ Lütfen Türkiye sınırları içinde bir konum seçin.").openOn(map);
+    }
+}
+
+function updateMarkerAndFields(lat, lng) {
+    selectedCoords = {lat, lng};
+    if (marker) marker.setLatLng([lat, lng]);
+    else marker = L.marker([lat, lng], {icon: CustomIcon}).addTo(map).bindPopup("Kesinti Konumu").openPopup();
+    document.getElementById('selected-location').innerText = `Seçilen Konum: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+}
+
+// ===================================================================
+// VERİ ÇEKME & HARİTAYA EKLEME
+// ===================================================================
+function fetchRealTimeMarkers() {
+    const statusDiv = document.getElementById('data-status');
+    if (statusDiv) {
+        statusDiv.textContent = 'Gerçek zamanlı veriler yükleniyor...';
+        statusDiv.classList.remove('alert-success', 'alert-danger');
+        statusDiv.classList.add('alert-warning');
+    }
+
+    fetch(APPS_SCRIPT_WEB_APP_URL)
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP Hata: ${res.status}`);
+            
+            // JSON Content-Type kontrolü
+            const contentType = res.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new Error("Sunucudan beklenen JSON yerine farklı formatta yanıt alındı. Apps Script URL'sini kontrol edin.");
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (!Array.isArray(data)) throw new Error("Geçersiz veri formatı");
+
+            const last24h = data.filter(d => d.timestamp && Date.now() - d.timestamp <= 24*60*60*1000 && d.enlem && d.boylam);
+            
+            updateMapMarkers(last24h);
+            updateRealtimeTable(last24h); 
+        })
+        .catch(err => {
+            console.error(err);
+            if (statusDiv) {
+                statusDiv.textContent = `⚠️ Veri yüklenemedi: ${err.message}`;
+                statusDiv.classList.remove('alert-warning');
+                statusDiv.classList.add('alert-danger');
+            }
+        });
+}
+
+function updateMapMarkers(filteredData) {
+    realtimeMarkers.clearLayers();
+    if (!map) return;
+
+    if (filteredData.length === 0) {
+        map.setView(TURKEY_CENTER, 6);
+        return;
+    }
+
+    const bounds = L.latLngBounds([]);
+    filteredData.forEach(item => {
+        if (isWithinTurkeyBounds(item.enlem, item.boylam)) {
+            const popup = `<strong>ISP:</strong> ${sanitizeInput(item.isp)}<br>
+                           <strong>Konum:</strong> ${sanitizeInput(item.ilce)} / ${sanitizeInput(item.il)}<br>
+                           <strong>Tarih:</strong> ${new Date(item.timestamp).toLocaleString('tr-TR')}`;
+            L.marker([item.enlem, item.boylam], {icon: CustomIcon}).bindPopup(popup).addTo(realtimeMarkers);
+            bounds.extend([item.enlem, item.boylam]);
+        }
+    });
+
+    if (bounds.isValid()) map.fitBounds(bounds.pad(0.1));
+    else map.setView(TURKEY_CENTER, 6);
+}
+
+// ===================================================================
+// TABLO GÖRÜNTÜLEME FONKSİYONU
+// ===================================================================
+function updateRealtimeTable(filteredData) {
+    const tableBody = document.getElementById('realtime-table-body');
+    const statusDiv = document.getElementById('data-status');
+
+    if (!tableBody) return;
+
+    // Tabloyu temizle
+    tableBody.innerHTML = '';
+
+    if (filteredData.length === 0) {
+        const row = tableBody.insertRow();
+        const cell = row.insertCell();
+        cell.colSpan = 5; // 5 sütun olduğu için
+        cell.textContent = "Son 24 saatte kayıtlı kesinti bulunmamaktadır.";
+        cell.classList.add('text-center', 'text-muted');
+        if (statusDiv) statusDiv.textContent = 'Son 24 saat verileri yüklendi. (0 kayıt)';
+        statusDiv.classList.remove('alert-warning');
+        statusDiv.classList.add('alert-success');
+        return;
+    }
+
+    filteredData.forEach(item => {
+        const row = tableBody.insertRow();
+        
+        // 1. Zaman Damgası
+        row.insertCell().textContent = new Date(item.timestamp).toLocaleString('tr-TR');
+        
+        // 2. ISP
+        row.insertCell().textContent = sanitizeInput(item.isp || '-');
+        
+        // 3. Konum (İlçe / İl)
+        row.insertCell().textContent = `${sanitizeInput(item.ilce || '-')} / ${sanitizeInput(item.il || '-')}`;
+        
+        // 4. Başlangıç Saati
+        row.insertCell().textContent = sanitizeInput(item.baslangicSaati || '-');
+        
+        // 5. Tahmini Bitiş Saati
+        row.insertCell().textContent = sanitizeInput(item.bitisSaati || '-');
+    });
+
+    if (statusDiv) statusDiv.textContent = `✅ Son 24 saat verileri yüklendi. (${filteredData.length} kayıt)`;
+    statusDiv.classList.remove('alert-warning');
+    statusDiv.classList.add('alert-success');
+}
+
+// ===================================================================
+// FORM İŞLEMLERİ
+// ===================================================================
+function sanitizeInput(str) {
+    if (typeof str !== 'string') return str;
+    const map = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#x27;','/':'&#x2F;'};
+    return str.replace(/[&<>"'/]/g, m => map[m]);
+}
+
+function handleSubmit(e) {
+    e.preventDefault();
+    if (!selectedCoords) return alert("Haritadan konum seçin.");
+    const captcha = document.getElementById('captcha').value;
+    if (!checkCaptcha(captcha)) return alert("Captcha hatalı.");
+    const form = e.target;
+    const formData = new FormData(form);
+    formData.append(FORM_ENTRY_IDS.enlem, selectedCoords.lat);
+    formData.append(FORM_ENTRY_IDS.boylam, selectedCoords.lng);
+
+    fetch(GOOGLE_FORM_URL, {method:'POST', body:formData, mode:'no-cors'})
+        .then(() => { 
+            alert("Form gönderildi."); 
+            form.reset(); 
+            generateCaptcha(); 
+            if(marker) map.removeLayer(marker); 
+            // Form gönderildikten sonra verileri yeniden çek ve haritayı/tabloyu güncelle
+            fetchRealTimeMarkers(); 
+        })
+        .catch(err => console.error("Form gönderme hatası:", err));
+}
+
+// ===================================================================
+// BAŞLANGIÇ
+// ===================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    generateCaptcha();
+    initMap();
+    const form = document.getElementById('kesinti-form');
+    if (form) form.addEventListener('submit', handleSubmit);
+});
